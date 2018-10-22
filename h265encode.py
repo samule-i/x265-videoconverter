@@ -3,7 +3,7 @@ import os
 import json
 import subprocess
 
-def codec_name(file):
+def videoCodecName(file):
     cmd = ["ffprobe","-show_format", "-show_streams", "-loglevel", "quiet", "-print_format", "json", file]
     output = json.loads(subprocess.check_output( cmd ))
     return output["streams"][0]["codec_name"]
@@ -21,7 +21,7 @@ def mediaList():
             filename = file.lower()
             if not (filename.endswith('.mkv') or filename.endswith('.mp4')):
                 continue
-            encoding = codec_name(filepath)
+            encoding = videoCodecName(filepath)
             if not encoding == 'hevc':
                 videoList.append(filepath)
     return videoList
@@ -46,5 +46,6 @@ for file in mediaList():
     output = os.path.splitext(file)[0]+'.mkv'
     result = convertLibx265(input, output)
     if result == 0:
-        os.remove("delete: "+oldFile)
+        print("delete: "+input)
+        os.remove(input)
     print(result)
