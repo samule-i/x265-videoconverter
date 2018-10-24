@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import os
-import json
 import subprocess
+import logging
 
 def videoCodecName(file):
-    cmd = ["ffprobe","-show_format", "-show_streams", "-loglevel", "quiet", "-print_format", "json", file]
-    output = json.loads(subprocess.check_output( cmd ))
-    return output["streams"][0]["codec_name"]
+    cmd = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", file]
+    output = subprocess.check_output( cmd )
+    return output.strip().decode('ascii')
 
 def mediaList():
     videoList = []
@@ -23,6 +23,8 @@ def mediaList():
                 continue
             encoding = videoCodecName(filepath)
             if not encoding == 'hevc':
+                logging.info('adding file: %s', filepath)
+                logging.info('codec: %s', encoding)
                 videoList.append(filepath)
     return videoList
 
@@ -35,11 +37,14 @@ def backup(fullpath):
     return newFilePath
 
 def convertLibx265(input, output):
-    cmd = ["ffmpeg", "-i", input, "-n", "-map", "0", "-c:v", "libx265", "-c:a", "copy", "-c:s", "copy", output]
+    cmd = ["ffmpeg", "-i", input, "-n", "-ac", "2", "-map", "0", "-c:v", "libx265", "-c:a", "aac", "-c:s", "copy", output]
     result = subprocess.call(cmd)
     return result
 
+logging.basicConfig(filename='h265encode.py.log', level=logging.DEBUG)
+
 for file in mediaList():
+    logging.info('converting file %s', file)
     print(file)
     input = backup(file)
     print(input)
@@ -47,5 +52,12 @@ for file in mediaList():
     result = convertLibx265(input, output)
     if result == 0:
         print("delete: "+input)
+        logging.info('delete: %s', input)
         os.remove(input)
+    else:
+        logging.warning('failed to convert %s \n error code: %s', input, result)
+        logging.warning('Delete %s', output)
+        logging.warning('replace %s', file)
+        os.remove(output)
+        os.rename(input, file)
     print(result)
