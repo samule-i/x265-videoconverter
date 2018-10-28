@@ -31,10 +31,7 @@ def mediaList():
     return videoList
 
 def backup(fullpath):
-    backupDirectory = os.path.dirname(fullpath)+'.old'
-    if not os.path.exists(backupDirectory):
-        os.makedirs(backupDirectory)
-    newFilePath = os.path.join(backupDirectory, os.path.basename(fullpath))
+    newFilePath = fullpath + '.bk'
     os.rename(fullpath, newFilePath)
     return newFilePath
 
