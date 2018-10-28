@@ -26,6 +26,8 @@ def mediaList():
                 logging.info('adding file: %s', filepath)
                 logging.info('codec: %s', encoding)
                 videoList.append(filepath)
+            if len(videoList) >= 10:
+                return videoList
     return videoList
 
 def backup(fullpath):
