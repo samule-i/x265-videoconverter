@@ -23,8 +23,7 @@ def mediaList():
                 continue
             encoding = videoCodecName(filepath)
             if not encoding == 'hevc':
-                logging.info('adding file: %s', filepath)
-                logging.info('codec: %s', encoding)
+                logging.info('adding file: %s - %s', filepath, encoding)
                 videoList.append(filepath)
             if len(videoList) >= 10:
                 return videoList
@@ -41,16 +40,15 @@ def convertLibx265(input, output):
     return result
 
 logging.basicConfig(filename='h265encode.py.log', level=logging.DEBUG)
+logging.info("------------------------------------------------------")
+logging.info("Begin search and convert")
 
 for file in mediaList():
     logging.info('converting file %s', file)
-    print(file)
     input = backup(file)
-    print(input)
     output = os.path.splitext(file)[0]+'.mkv'
     result = convertLibx265(input, output)
     if result == 0:
-        print("delete: "+input)
         logging.info('delete: %s', input)
         os.remove(input)
     else:
@@ -59,4 +57,4 @@ for file in mediaList():
         logging.warning('replace %s', file)
         os.remove(output)
         os.rename(input, file)
-    print(result)
+logging.info('completed')
