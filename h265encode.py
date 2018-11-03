@@ -39,9 +39,16 @@ def convertLibx265(input, output):
     result = subprocess.call(cmd)
     return result
 
+def sizeCompare(input, output):
+    inputSize = os.path.getsize(input)
+    outputSize = os.path.getsize(output)
+    return inputSize - outputSize
+
+
 logging.basicConfig(filename='h265encode.py.log', level=logging.DEBUG)
 logging.info("------------------------------------------------------")
 logging.info("Begin search and convert")
+spaceSaved = 0
 
 for file in mediaList():
     logging.info('converting file %s', file)
@@ -49,6 +56,7 @@ for file in mediaList():
     output = os.path.splitext(file)[0]+'.mkv'
     result = convertLibx265(input, output)
     if result == 0:
+        spaceSaved += sizeCompare(input, output)
         logging.info('delete: %s', input)
         os.remove(input)
     else:
@@ -58,3 +66,4 @@ for file in mediaList():
         os.remove(output)
         os.rename(input, file)
 logging.info('completed')
+logging.info('SAVED: %smb', spaceSaved/1000000)
