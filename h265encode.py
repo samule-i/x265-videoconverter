@@ -19,13 +19,16 @@ def mediaList():
         for file in os.listdir(directory):
             filepath = os.path.join(directory, file)
             filename = file.lower()
+            if filename.endswith('.bk'):
+                recover = restoreBackup(filepath)
+                videoList.append(recover)
             if not (filename.endswith('.mkv') or filename.endswith('.mp4')):
                 continue
             encoding = videoCodecName(filepath)
             if not encoding == 'hevc':
                 logging.info('adding file: %s - %s', filepath, encoding)
                 videoList.append(filepath)
-            if len(videoList) >= 10:
+            if len(videoList) >= 15:
                 return videoList
     return videoList
 
@@ -34,8 +37,21 @@ def backup(fullpath):
     os.rename(fullpath, newFilePath)
     return newFilePath
 
+def restoreBackup(filepath):
+    trueFile = os.path.splitext(filepath)[0]
+    logging.info('RM %s MV %s', filepath, trueFile)
+    if os.path.exists(trueFile):
+        os.remove(trueFile)
+    os.rename(filepath, trueFile)
+    return trueFile
+
 def convertLibx265(input, output):
-    cmd = ["ffmpeg", "-i", input, "-n", "-ac", "2", "-map", "0", "-c:v", "libx265", "-c:a", "aac", "-c:s", "copy", output]
+    cmd = ["ffmpeg", "-i", input, "-n",
+    "-map", "0", "-map_metadata", "0", "-map_chapters", "0",
+    "-c:v", "libx265", "-preset", "slower", "-pix_fmt", "yuv420p",
+    "-x265-params", "input-depth=8",
+    "-c:a", "aac",  "-ac", "2",
+    "-c:s", "ass", output]
     result = subprocess.call(cmd)
     return result
 
@@ -60,10 +76,6 @@ for file in mediaList():
         logging.info('delete: %s', input)
         os.remove(input)
     else:
-        logging.warning('failed to convert %s \n error code: %s', input, result)
-        logging.warning('Delete %s', output)
-        logging.warning('replace %s', file)
-        os.remove(output)
-        os.rename(input, file)
+        restoreBackup(input)
 logging.info('completed')
 logging.info('SAVED: %smb', spaceSaved/1000000)
