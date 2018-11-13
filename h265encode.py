@@ -52,7 +52,7 @@ def restoreBackup(filepath):
     return trueFile
 
 def convertLibx265(input, output):
-    cmd = ["ffmpeg", "-i", input, "-n",
+    cmd = ["ffmpeg", "-i", input, "-n", "-hide_banner", "-loglevel", "panic",
     "-map", "0", "-map_metadata", "0", "-map_chapters", "0",
     "-c:v", "libx265", "-pix_fmt", "yuv420p",
     "-x265-params", "--profile=main",
