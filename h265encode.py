@@ -44,18 +44,21 @@ def backup(fullpath):
     return newFilePath
 
 def restoreBackup(filepath):
+    # If the program was stopped during a transcode, mkv or bk files may be left and cause ffmpeg to fail.
     trueFile = os.path.splitext(filepath)[0]
-    logging.info('RM %s MV %s', filepath, trueFile)
+    logging.info('FAILED: %s', os.path.basename(filepath))
     if os.path.exists(trueFile):
         os.remove(trueFile)
+    failedTranscodeFile = os.path.splitext(trueFile)[0]+'.mkv'
+    if os.path.exists(failedTranscodeFile):
+        os.remove(failedTranscodeFile)
     os.rename(filepath, trueFile)
     return trueFile
 
 def convertLibx265(input, output):
-    cmd = ["ffmpeg", "-i", input, "-n", "-hide_banner", "-loglevel", "panic",
+    cmd = ["ffmpeg", "-i", input, "-n", "-hide_banner",
     "-map", "0", "-map_metadata", "0", "-map_chapters", "0",
     "-c:v", "libx265", "-pix_fmt", "yuv420p",
-    "-x265-params", "--profile=main",
     "-c:a", "aac",  "-ac", "2",
     "-c:s", "ass", output]
     result = subprocess.call(cmd)
