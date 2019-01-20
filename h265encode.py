@@ -60,7 +60,7 @@ def convertLibx265(input, output):
     "-map", "0", "-map_metadata", "0", "-map_chapters", "0",
     "-c:v", "libx265", "-pix_fmt", "yuv420p",
     "-c:a", "aac",  "-ac", "2",
-    "-c:s", "ass", output]
+    "-c:s", "copy", output]
     result = subprocess.call(cmd)
     return result
 
