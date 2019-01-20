@@ -73,7 +73,6 @@ def sizeCompare(input, output):
 
 
 logging.basicConfig(filename='h265encode.py.log', level=logging.DEBUG)
-logging.info("------------------------------------------------------")
 logging.info("Begin search and convert")
 spaceSaved = 0
 i = 0
@@ -92,4 +91,4 @@ for file in media:
     else:
         restoreBackup(input)
 logging.info('completed')
-logging.info('SAVED: %smb', spaceSaved/1000000)
+logging.info('SAVED: %smb', int(spaceSaved/1000000))
