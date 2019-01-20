@@ -27,7 +27,9 @@ def mediaList():
             if filename.endswith('.bk'):
                 recover = restoreBackup(filepath)
                 videoList.append(recover)
-            if not (filename.endswith('.mkv') or filename.endswith('.mp4')):
+            videoFiletypes = ['.mkv', '.mp4', '.avi', '.wmv', '.flv', '.mov', '.ogm', '.mpg', '.vob']
+            fileExtension = os.path.splitext(filename)[1]
+            if fileExtension not in videoFiletypes:
                 continue
             encoding = videoCodecName(filepath)
             profile = hevcProfile(filepath)
