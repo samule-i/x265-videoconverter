@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import os
+import os, sys
 import subprocess
 import logging
+import json
 
 def videoCodecName(file):
     cmd = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", file]
@@ -13,32 +14,36 @@ def hevcProfile(file):
     output = subprocess.check_output( cmd )
     return output.strip().decode('ascii')
 
-def mediaList():
-    videoList = []
-    directoryList = []
-    for directory in os.listdir(os.getcwd()):
-        if os.path.isdir(directory) and not directory.endswith('.old'):
-            directoryList.append(os.path.abspath(directory))
+def scanPathForMedia(library):
+    videoFiletypes = ['.mkv', '.mp4', '.avi', '.wmv', '.flv', '.mov', '.ogm', '.mpg', '.vob']
+    for path in library['paths']:
+        for root, dir, files in os.walk(path):
+            for name in files:
+                if os.path.splitext(name)[1] not in videoFiletypes:
+                    continue
 
-    for directory in directoryList:
-        for file in os.listdir(directory):
-            filepath = os.path.join(directory, file)
-            filename = file.lower()
-            if filename.endswith('.bk'):
-                recover = restoreBackup(filepath)
-                videoList.append(recover)
-            videoFiletypes = ['.mkv', '.mp4', '.avi', '.wmv', '.flv', '.mov', '.ogm', '.mpg', '.vob']
-            fileExtension = os.path.splitext(filename)[1]
-            if fileExtension not in videoFiletypes:
-                continue
-            encoding = videoCodecName(filepath)
-            profile = hevcProfile(filepath)
-            if not encoding == 'hevc' or not profile == 'Main':
-                logging.info('adding file: %s - %s', filepath, encoding)
-                videoList.append(filepath)
-            if len(videoList) >= 15:
-                return videoList
-    return videoList
+                filePath = os.path.join(root, name)
+
+                #Windows path length limit. fatal.
+                if len(filePath) > 255:
+                    continue
+
+                print(filePath)
+                if os.path.isfile(filePath + '.bk'):
+                    restoreBackup(filePath + '.bk')
+
+                libraryItem = {}
+                libraryItem['filename'] = name
+                libraryItem['original_codec'] = videoCodecName(filePath)
+                libraryItem['original_mode'] = hevcProfile(filePath)
+                libraryItem['original_filesize'] = os.path.getsize(filePath)
+                libraryItem['hevc_fileSize'] = os.path.getsize(filePath)
+                if libraryItem['original_codec'] == 'hevc' and libraryItem['original_mode'] == 'Main':
+                    libraryItem['encoded'] = True
+                else:
+                    libraryItem['encoded'] = False
+                library['files'][filePath] = libraryItem
+
 
 def backup(fullpath):
     newFilePath = fullpath + '.bk'
@@ -57,6 +62,7 @@ def restoreBackup(filepath):
     os.rename(filepath, trueFile)
     return trueFile
 
+
 def convertLibx265(input, output):
     cmd = ["ffmpeg", "-i", input, "-n", "-hide_banner",
     "-map", "0", "-map_metadata", "0", "-map_chapters", "0",
@@ -66,29 +72,74 @@ def convertLibx265(input, output):
     result = subprocess.call(cmd)
     return result
 
-def sizeCompare(input, output):
-    inputSize = os.path.getsize(input)
-    outputSize = os.path.getsize(output)
-    return inputSize - outputSize
-
-
-logging.basicConfig(filename='h265encode.py.log', level=logging.DEBUG)
+scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
+logging.basicConfig(filename=scriptdir + '/log.txt', level=logging.DEBUG)
 logging.info("Begin search and convert")
+
+paths = []
+if len(sys.argv) > 1:
+    for items in range(len(sys.argv) - 1):
+        paths.append(os.path.abspath(sys.argv[items + 1]))
+
+jsonFilePath = os.path.abspath(scriptdir + '/library.json')
+if not os.path.isfile(jsonFilePath):
+    print('No library found, initialising new library')
+    jsonLibrary = {}
+    jsonLibrary['paths'] = paths
+    jsonLibrary['files'] = {}
+    scanPathForMedia(jsonLibrary)
+    with open(jsonFilePath, 'w') as jsonFile:
+        json.dump(jsonLibrary, jsonFile)
+print('loading library')
+with open(jsonFilePath) as jsonFile:
+    jsonLibrary = json.load(jsonFile)
+rescan = False
+for item in paths:
+    if item not in jsonLibrary['paths']:
+        jsonLibrary['paths'].append(item)
+        rescan = True
+if rescan:
+    scanPathForMedia(jsonLibrary)
+
+
 spaceSaved = 0
 i = 0
-media = mediaList()
-for file in media:
+tot = 15
+
+for file in jsonLibrary['files']:
+
+    if(i > tot):
+        break
+
+    if not os.path.exists(file):
+        del jsonLibrary['files'][file]
+        with open(jsonFilePath, 'w') as jsonFile:
+            json.dump(jsonLibrary, jsonFile)
+
+    if jsonLibrary['files'][file]['encoded'] == True:
+        continue
+
+    if videoCodecName(file) == 'hevc' or hevcProfile(file) == 'Main':
+        logging.info('ERROR: GOT 265 FILE, %s', file)
+
     i += 1
-    logging.info('%s/%s converting file %s', i, len(media), os.path.basename(file))
     input = backup(file)
     output = os.path.splitext(file)[0]+'.mkv'
+
     result = convertLibx265(input, output)
     if result == 0:
-        fileSpaceSaved = sizeCompare(input, output)
+        jsonLibrary['files'][output] = jsonLibrary['files'].pop(file)
+        jsonLibrary['files'][output]['filename'] = os.path.basename(output)
+        jsonLibrary['files'][output]['hevc_fileSize'] = os.path.getsize(output)
+        jsonLibrary['files'][output]['encoded'] = True
+        with open(jsonFilePath, 'w') as jsonFile:
+            json.dump(jsonLibrary, jsonFile)
+        fileSpaceSaved = jsonLibrary['files'][output]['original_filesize'] - jsonLibrary['files'][output]['hevc_fileSize']
         spaceSaved += fileSpaceSaved
-        logging.info('%s/%s delete: %s, space saved: %smb', i, len(media), os.path.basename(input), fileSpaceSaved/1000000)
+        logging.info('%s/%s delete: %s, space saved: %smb', i, tot, os.path.basename(input), fileSpaceSaved/1000000)
         os.remove(input)
     else:
         restoreBackup(input)
+
 logging.info('completed')
 logging.info('SAVED: %smb', int(spaceSaved/1000000))
