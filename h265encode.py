@@ -107,25 +107,30 @@ i = 0
 tot = 15
 
 for file in jsonLibrary['files']:
-
-    if(i > tot):
+    if(i >= tot):
         break
 
     if not os.path.exists(file):
-        del jsonLibrary['files'][file]
-        with open(jsonFilePath, 'w') as jsonFile:
-            json.dump(jsonLibrary, jsonFile)
-
-    if jsonLibrary['files'][file]['encoded'] == True:
+        #del jsonLibrary['files'][file]
+        #with open(jsonFilePath, 'w') as jsonFile:
+        #    json.dump(jsonLibrary, jsonFile)
         continue
 
-    if videoCodecName(file) == 'hevc' or hevcProfile(file) == 'Main':
+    try:
+        if jsonLibrary['files'][file]['encoded']:
+            continue
+    except KeyError:
+        continue
+
+    if videoCodecName(file) == 'hevc' and hevcProfile(file) == 'Main':
         logging.info('ERROR: GOT 265 FILE, %s', file)
+
+    if os.path.isfile(file + '.bk'):
+        restoreBackup(file + '.bk')
 
     i += 1
     input = backup(file)
     output = os.path.splitext(file)[0]+'.mkv'
-
     result = convertLibx265(input, output)
     if result == 0:
         jsonLibrary['files'][output] = jsonLibrary['files'].pop(file)
