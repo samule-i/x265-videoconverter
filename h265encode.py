@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os, sys
+import getopt
 import subprocess
 import logging
 import json
@@ -76,16 +77,11 @@ scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
 logging.basicConfig(filename=scriptdir + '/log.txt', level=logging.DEBUG)
 logging.info("Begin search and convert")
 
-paths = []
-if len(sys.argv) > 1:
-    for items in range(len(sys.argv) - 1):
-        paths.append(os.path.abspath(sys.argv[items + 1]))
-
 jsonFilePath = os.path.abspath(scriptdir + '/library.json')
 if not os.path.isfile(jsonFilePath):
     print('No library found, initialising new library')
     jsonLibrary = {}
-    jsonLibrary['paths'] = paths
+    jsonLibrary['paths'] = []
     jsonLibrary['files'] = {}
     scanPathForMedia(jsonLibrary)
     with open(jsonFilePath, 'w') as jsonFile:
@@ -94,27 +90,44 @@ print('loading library')
 with open(jsonFilePath) as jsonFile:
     jsonLibrary = json.load(jsonFile)
 rescan = False
-for item in paths:
-    if item not in jsonLibrary['paths']:
-        jsonLibrary['paths'].append(item)
-        rescan = True
-if rescan:
-    scanPathForMedia(jsonLibrary)
 
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"hc:p:s", ["count=", "path=", "scan="])
+except getopt.GetoptError:
+    print("h265encode.py -p 'path' -c 'count'")
+    sys.exit(2)
+
+for opt, arg in opts:
+    if opt == '-h':
+        print("h265encode.py -p 'path' -c 'count'")
+        sys.exit()
+    elif opt in ("-c", "--count"):
+        fileConvertCount = int(arg)
+    elif opt in ("-p", "--path"):
+        appendPath = os.path.abspath(arg)
+        if not os.path.isdir(appendPath):
+            print('invalid path')
+            sys.exit(2)
+        print(appendPath)
+        if appendPath not in jsonLibrary['paths']:
+            logging.info('adding %s to paths', appendPath)
+            jsonLibrary['paths'].append(appendPath)
+    elif opt in ("-s", "--scan"):
+        scanPathForMedia(jsonLibrary)
 
 spaceSaved = 0
 i = 0
-tot = 15
 
 for file in jsonLibrary['files']:
-    if(i >= tot):
+    if(i >= fileConvertCount):
         break
 
     if not os.path.exists(file):
-        #del jsonLibrary['files'][file]
-        #with open(jsonFilePath, 'w') as jsonFile:
-        #    json.dump(jsonLibrary, jsonFile)
+        logging.info("error reading %s, file not found.", file)
         continue
+
+    if os.path.isfile(file + '.bk'):
+        restoreBackup(file + '.bk')
 
     try:
         if jsonLibrary['files'][file]['encoded']:
@@ -141,7 +154,7 @@ for file in jsonLibrary['files']:
             json.dump(jsonLibrary, jsonFile)
         fileSpaceSaved = jsonLibrary['files'][output]['original_filesize'] - jsonLibrary['files'][output]['hevc_fileSize']
         spaceSaved += fileSpaceSaved
-        logging.info('%s/%s delete: %s, space saved: %smb', i, tot, os.path.basename(input), fileSpaceSaved/1000000)
+        logging.info('%s/%s delete: %s, space saved: %smb', i, fileConvertCount, os.path.basename(input), fileSpaceSaved/1000000)
         os.remove(input)
     else:
         restoreBackup(input)
