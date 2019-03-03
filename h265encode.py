@@ -29,10 +29,6 @@ def scanPathForMedia(library):
                 if len(filePath) > 255:
                     continue
 
-                print(filePath)
-                if os.path.isfile(filePath + '.bk'):
-                    restoreBackup(filePath + '.bk')
-
                 libraryItem = {}
                 libraryItem['filename'] = name
                 libraryItem['original_codec'] = videoCodecName(filePath)
@@ -44,7 +40,6 @@ def scanPathForMedia(library):
                 else:
                     libraryItem['encoded'] = False
                 library['files'][filePath] = libraryItem
-
 
 def backup(fullpath):
     newFilePath = fullpath + '.bk'
@@ -62,7 +57,6 @@ def restoreBackup(filepath):
         os.remove(failedTranscodeFile)
     os.rename(filepath, trueFile)
     return trueFile
-
 
 def convertLibx265(input, output):
     cmd = ["ffmpeg", "-i", input, "-n", "-hide_banner",
@@ -137,9 +131,6 @@ for file in jsonLibrary['files']:
 
     if videoCodecName(file) == 'hevc' and hevcProfile(file) == 'Main':
         logging.info('ERROR: GOT 265 FILE, %s', file)
-
-    if os.path.isfile(file + '.bk'):
-        restoreBackup(file + '.bk')
 
     i += 1
     input = backup(file)
