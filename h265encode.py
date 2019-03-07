@@ -16,19 +16,29 @@ def hevcProfile(file):
     return output.strip().decode('ascii')
 
 def scanPathForMedia(library):
-    videoFiletypes = ['.mkv', '.mp4', '.avi', '.wmv', '.flv', '.mov', '.ogm', '.mpg', '.vob']
+    videoFiletypes = ['.mkv', '.mp4', '.avi', '.wmv', '.flv', '.mov', '.ogm', 'ogv', '.mpg', '.vob']
+    print('Scanning paths for media')
+    print(library['paths'])
     for path in library['paths']:
+        print(path)
         for root, dir, files in os.walk(path):
+            print(root)
             for name in files:
-                if os.path.splitext(name)[1] not in videoFiletypes:
+                if str.lower(os.path.splitext(name)[1]) not in videoFiletypes:
                     continue
 
                 filePath = os.path.join(root, name)
+
+                if filePath in library['files']:
+                    print("%s already in db", filePath)
+                    continue
 
                 #Windows path length limit. fatal.
                 if len(filePath) > 255:
                     continue
 
+                logging.info("adding %s to db", name)
+                print("adding %s to db", name)
                 libraryItem = {}
                 libraryItem['filename'] = name
                 libraryItem['original_codec'] = videoCodecName(filePath)
@@ -40,6 +50,7 @@ def scanPathForMedia(library):
                 else:
                     libraryItem['encoded'] = False
                 library['files'][filePath] = libraryItem
+    return library
 
 def backup(fullpath):
     newFilePath = fullpath + '.bk'
