@@ -106,8 +106,16 @@ for opt, arg in opts:
         if appendPath not in jsonLibrary['paths']:
             logging.info('adding %s to paths', appendPath)
             jsonLibrary['paths'].append(appendPath)
+            with open(jsonFilePath, 'w') as jsonFile:
+                json.dump(jsonLibrary, jsonFile)
     elif opt in ("-s", "--scan"):
-        scanPathForMedia(jsonLibrary)
+        scanResult = scanPathForMedia(jsonLibrary)
+        with open(jsonFilePath, 'w') as jsonFile:
+            json.dump(scanResult, jsonFile)
+    elif opt in ("-l", "--listpaths"):
+        print(jsonLibrary['paths'])
+        sys.exit()
+
 
 spaceSaved = 0
 i = 0
