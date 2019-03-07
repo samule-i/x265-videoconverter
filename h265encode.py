@@ -97,16 +97,16 @@ with open(jsonFilePath) as jsonFile:
 rescan = False
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"hc:p:s", ["count=", "path=", "scan="])
+    opts, args = getopt.getopt(sys.argv[1:],"hn:p:sl", ["number=", "path=", "scan=", "listpaths="])
 except getopt.GetoptError:
-    print("h265encode.py -p 'path' -c 'count'")
+    print("h265encode.py -p 'path' -n 'number'")
     sys.exit(2)
 
 for opt, arg in opts:
     if opt == '-h':
-        print("h265encode.py -p 'path' -c 'count'")
+        print("h265encode.py -p 'path' -n 'number' -s 'scan media' -l 'list paths'")
         sys.exit()
-    elif opt in ("-c", "--count"):
+    elif opt in ("-n", "--number"):
         fileConvertCount = int(arg)
     elif opt in ("-p", "--path"):
         appendPath = os.path.abspath(arg)
