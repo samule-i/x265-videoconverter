@@ -130,6 +130,7 @@ for opt, arg in opts:
 
 spaceSaved = 0
 i = 0
+failureList = []
 
 for file in jsonLibrary['files']:
     if(i >= fileConvertCount):
@@ -168,6 +169,12 @@ for file in jsonLibrary['files']:
         os.remove(input)
     else:
         restoreBackup(input)
+        failureList.append(file)
+
+if len(failureList) > 0:
+    print("Some files failed, recommended manual conversion")
+for filename in failureList:
+    print("failed: %s", filename)
 
 logging.info('completed')
 logging.info('SAVED: %smb', int(spaceSaved/1000000))
