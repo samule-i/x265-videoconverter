@@ -16,7 +16,7 @@ def hevcProfile(file):
     return output.strip().decode('ascii')
 
 def scanPathForMedia(library):
-    videoFiletypes = ['.mkv', '.mp4', '.avi', '.wmv', '.flv', '.mov', '.ogm', 'ogv', '.mpg', '.vob']
+    videoFiletypes = ['.mkv', '.mp4', '.avi', '.wmv', '.flv', '.mov', '.ogm', 'ogv', '.mpg', '.vob', 'webm', 'webp']
     print('Scanning paths for media')
     print(library['paths'])
     for path in library['paths']:
