@@ -52,6 +52,16 @@ def scanPathForMedia(library):
                 library['files'][filePath] = libraryItem
     return library
 
+def markCompleted(filePath):
+    #pass through the original name
+    newKey = os.path.splitext(filePath)[0] + '.mkv'
+    jsonLibrary['files'][newKey] = jsonLibrary['files'].pop(filePath)
+    jsonLibrary['files'][newKey]['filename'] = os.path.basename(newKey)
+    jsonLibrary['files'][newKey]['hevc_fileSize'] = os.path.getsize(newKey)
+    jsonLibrary['files'][newKey]['encoded'] = True
+    with open(jsonFilePath, 'w') as jsonFile:
+        json.dump(jsonLibrary, jsonFile)
+
 def backup(fullpath):
     newFilePath = fullpath + '.bk'
     os.rename(fullpath, newFilePath)
@@ -150,19 +160,16 @@ for file in jsonLibrary['files']:
         continue
 
     if videoCodecName(file) == 'hevc' and hevcProfile(file) == 'Main':
-        logging.info('ERROR: GOT 265 FILE, %s', file)
+        logging.error('file passed through is already encoded hevc L4, %s', file)
+        markCompleted(file)
+        continue
 
     i += 1
     input = backup(file)
     output = os.path.splitext(file)[0]+'.mkv'
     result = convertLibx265(input, output)
     if result == 0:
-        jsonLibrary['files'][output] = jsonLibrary['files'].pop(file)
-        jsonLibrary['files'][output]['filename'] = os.path.basename(output)
-        jsonLibrary['files'][output]['hevc_fileSize'] = os.path.getsize(output)
-        jsonLibrary['files'][output]['encoded'] = True
-        with open(jsonFilePath, 'w') as jsonFile:
-            json.dump(jsonLibrary, jsonFile)
+        markCompleted(file)
         fileSpaceSaved = jsonLibrary['files'][output]['original_filesize'] - jsonLibrary['files'][output]['hevc_fileSize']
         spaceSaved += fileSpaceSaved
         logging.info('%s/%s delete: %s, space saved: %smb', i, fileConvertCount, os.path.basename(input), fileSpaceSaved/1000000)
