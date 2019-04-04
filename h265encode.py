@@ -15,6 +15,16 @@ def hevcProfile(file):
     output = subprocess.check_output( cmd )
     return output.strip().decode('ascii')
 
+def audioCodecName(file):
+    cmd = ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", file]
+    output = subprocess.check_output( cmd )
+    return output.strip().decode('ascii')
+
+def subtitleCodecName(file):
+    cmd = ["ffprobe", "-v", "error", "-select_streams", "s", "-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", file]
+    output = subprocess.check_output( cmd )
+    return output.strip().decode('ascii')
+
 def scanPathForMedia(library):
     videoFiletypes = ['.mkv', '.mp4', '.avi', '.wmv', '.flv', '.mov', '.ogm', 'ogv', '.mpg', '.vob', 'webm', 'webp']
     print('Scanning paths for media')
@@ -80,12 +90,39 @@ def restoreBackup(filepath):
     return trueFile
 
 def convertLibx265(input, output):
-    cmd = ["ffmpeg", "-i", input, "-n", "-hide_banner",
-    "-map", "0", "-map_metadata", "0", "-map_chapters", "0",
-    "-c:v", "libx265", "-pix_fmt", "yuv420p",
-    "-c:a", "aac",  "-ac", "2",
-    "-c:s", "copy", output]
-    result = subprocess.call(cmd)
+    mkvCompatableAudioCodecs = ['mp3', 'wma', 'aac', 'ac3', 'dts', 'pcm', 'lpcm', 'mlp', 'dts-hd'] # flac alac
+    mkvCompatableSubtitleCodecs = ['sami', 'srt', 'ass', 'dvd_subtitle', 'ssa', 'sub', 'usf',  'xsub']
+    command = ["ffmpeg", "-n", "-hide_banner", "-i", input]
+
+    videoOptions = ["-map", "0", "-map_chapters", "0", "-map_metadata", "0",
+                    "-c:v", "libx265", "-pix_fmt", "yuv420p"]
+
+    VC = videoCodecName(input)
+    AudioFormats = audioCodecName(input).split('\r\n')
+    SubFormats = subtitleCodecName(input).split('\r\n')
+
+    print(VC)
+    print(AudioFormats)
+    print(SubFormats)
+
+    if AudioFormats[0] in mkvCompatableAudioCodecs:
+        audioCodec = "copy"
+    else:
+        audioCodec = "aac"
+
+    if SubFormats[0] in mkvCompatableSubtitleCodecs:
+        subtitleCodec = "copy"
+    else:
+        subtitleCodec = "ass"
+
+    audioOptions = ["-c:a", audioCodec]
+    subtitleOptions = ["-c:s", subtitleCodec]
+
+    command = command + videoOptions + audioOptions + subtitleOptions
+    command.append(output)
+
+    logging.info('Video: libx265, Audio: %s, Subtitle: %s', audioCodec, subtitleCodec)
+    result = subprocess.call(command)
     return result
 
 scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
