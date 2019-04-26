@@ -72,6 +72,15 @@ def markCompleted(filePath):
     with open(jsonFilePath, 'w') as jsonFile:
         json.dump(jsonLibrary, jsonFile)
 
+def subtitlePaths(filePath):
+    subtitleExtensions = ['.ass', '.ssa', '.sub', '.srt']
+    subtitleFiles = []
+    for extension in subtitleExtensions:
+        subtitlePath = os.path.basename(filePath)+extension
+        if os.path.isfile(subtitlePath):
+            subtitleFiles.append(subtitlePath)
+    return subtitleFiles
+
 def backup(fullpath):
     newFilePath = fullpath + '.bk'
     os.rename(fullpath, newFilePath)
@@ -141,7 +150,6 @@ if not os.path.isfile(jsonFilePath):
 print('loading library')
 with open(jsonFilePath) as jsonFile:
     jsonLibrary = json.load(jsonFile)
-rescan = False
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hn:p:sl", ["number=", "path=", "scan=", "listpaths="])
@@ -194,6 +202,11 @@ for file in jsonLibrary['files']:
         if jsonLibrary['files'][file]['encoded']:
             continue
     except KeyError:
+        continue
+
+    subtitleList = subtitlePaths(file)
+    if len(subtitleList):
+        logging.warning('subtitles exist')
         continue
 
     if videoCodecName(file) == 'hevc' and hevcProfile(file) == 'Main':
