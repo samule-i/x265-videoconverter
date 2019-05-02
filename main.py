@@ -202,7 +202,10 @@ class X265Encoder():
         self.subtitleExtensions = ['.ass', '.ssa', '.sub', '.srt']
         self.subtitleFiles = []
         for extension in self.subtitleExtensions:
-            self.subtitleFiles += glob.glob(f'{self.filepathBase}*{extension}')
+            # glob chokes on '[]', escape [ and ]
+            self.pattern = f'{self.filepathBase}*{extension}'
+            self.pattern = self.pattern.translate({ord('['):'[[]', ord(']'):'[]]'})
+            self.subtitleFiles += glob.glob(self.pattern)
         return self.subtitleFiles
 
     def _mapVideoStreams(self):
