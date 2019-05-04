@@ -324,7 +324,7 @@ for opt, arg in opts:
         print("h265encode.py -p 'path' -n 'number' -s 'scan media' -l 'list paths'")
         sys.exit()
     elif opt in ("-n", "--number"):
-        fileConvertCount = int(arg)
+        convertFilepaths = library.returnLibraryEntries(int(arg)):
     elif opt in ("-p", "--path"):
         library.addNewPath(os.path.abspath(arg))
         sys.exit()
@@ -339,7 +339,7 @@ failedFilepaths = []
 spaceSaved = 0
 
 #Can't be changes whilst iterating dicts
-for filepath in library.returnLibraryEntries(fileConvertCount):
+for filepath in convertFilepaths:
 
     print(filepath)
     libraryEntry = library.library['incomplete_files'][filepath]
