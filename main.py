@@ -161,18 +161,6 @@ class X265Encoder():
         self.backupFilepath = self.filepath+'.bk'
         self.outputFilepath = self.filepathBase+'.mkv'
 
-        self._checkValid()
-
-        self.file = VideoInformation(self.filepath)
-        self.file.analyze()
-        if self.file.isEncoded():
-            logging.error(f' skipping: {self.filepath} is already encoded')
-            library.markComplete(self.filepath)
-            self.isEncoded = True
-        else:
-            self.isEncoded = False
-        self._backup()
-
     def _backup(self):
         if os.path.isfile(self.backupFilepath): os.remove(self.backupFilepath)
         os.rename(self.filepath, self.backupFilepath)
@@ -197,6 +185,7 @@ class X265Encoder():
         if not os.path.exists(self.filepath):
             logging.error(f' skipping: {self.filepath} not found')
             return False
+        return True
 
     def _subtitlePaths(self):
         self.subtitleExtensions = ['.ass', '.ssa', '.sub', '.srt']
@@ -269,8 +258,21 @@ class X265Encoder():
         return True
 
     def encode(self):
-        if self.isEncoded:
-            return True
+
+        if not self._checkValid():
+            print('invalid file')
+            return False
+
+        self.file = VideoInformation(self.filepath)
+        self.file.analyze()
+
+        if self.file.isEncoded():
+            logging.error(f' skipping: {self.filepath} is already encoded')
+            library.markComplete(self.filepath)
+            return False
+
+        self._backup()
+
         self.command = ["ffmpeg", "-n", "-hide_banner"]
         self.command += ["-i", f'"{self.backupFilepath}"']
 
