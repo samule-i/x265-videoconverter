@@ -11,18 +11,28 @@ class VideoInformation():
         self.filepath = fp
 
     def analyze(self):
-        self.command = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", '"'+self.filepath+'"']
+        self.command = ["ffprobe", "-v", "quiet", "-print_format", "json",
+            "-show_format", "-show_streams", '"'+self.filepath+'"']
         try:
             self.ffprobe = json.loads( subprocess.check_output( ' '.join(self.command) ) )
         except subprocess.CalledProcessError:
+            print('Error running ffprobe')
+            print(f'command {" ".join(self.command)}')
             return False
 
         self.streams = self.ffprobe["streams"]
-        self.videoStreams = [ stream for stream in self.streams if stream["codec_type"] == "video" and not stream["disposition"]["attached_pic"]]
-        self.audioStreams = [ stream for stream in self.streams if stream["codec_type"] == "audio"]
-        self.subtitleStreams = [ stream for stream in self.streams if stream["codec_type"] == "subtitle"]
-        self.attachmentStreams = [ stream for stream in self.streams if stream["codec_type"] == "attachment"]
-        self.imageStreams = [ stream for stream in self.streams if stream["codec_type"] == "video" and stream["disposition"]["attached_pic"]]
+        self.videoStreams = [ stream for stream in self.streams
+                if stream["codec_type"] == "video"
+                and not stream["disposition"]["attached_pic"]]
+        self.audioStreams = [ stream for stream in self.streams
+                if stream["codec_type"] == "audio"]
+        self.subtitleStreams = [ stream for stream in self.streams
+                if stream["codec_type"] == "subtitle"]
+        self.attachmentStreams = [ stream for stream in self.streams
+                if stream["codec_type"] == "attachment"]
+        self.imageStreams = [ stream for stream in self.streams
+                if stream["codec_type"] == "video"
+                and stream["disposition"]["attached_pic"]]
 
     def isEncoded(self):
         for stream in self.videoStreams:
@@ -51,7 +61,12 @@ class VideoInformation():
 class MediaLibrary():
     def __init__(self):
         self.libraryFilePath = os.path.abspath(os.path.dirname(sys.argv[0])) + '/library.json'
-        self.videoFileTypes = ['.mkv', '.mp4', '.avi', '.wmv', '.flv', '.mov', '.ogm', 'ogv', '.mpg', '.vob']
+        self.videoFileTypes = [
+            '.mkv', '.mp4', '.avi',
+            '.wmv', '.flv', '.mov',
+            '.ogm', '.ogv', '.mpg',
+            '.vob', '.webm', '.3gp'
+            ]
 
         if not os.path.isfile(self.libraryFilePath):
             logging.info(f' No medialibrary found, creating new library')
@@ -171,10 +186,13 @@ class X265Encoder():
 
     def _restore(self):
         if os.path.exists(self.backupFilepath):
-            if os.path.exists(self.outputFilepath): os.remove(self.outputFilepath)
-            if os.path.exists(self.filepath): os.remove(self.filepath)
+            if os.path.exists(self.outputFilepath):
+                os.remove(self.outputFilepath)
+            if os.path.exists(self.filepath):
+                os.remove(self.filepath)
             os.rename(self.backupFilepath, self.filepath)
-        if os.path.exists(self.filepath) and not os.path.exists(self.backupFilepath):
+        if (os.path.exists(self.filepath)
+                and not os.path.exists(self.backupFilepath)):
             return True
         else:
             return False
@@ -193,7 +211,9 @@ class X265Encoder():
         for extension in self.subtitleExtensions:
             # glob chokes on '[]', escape [ and ]
             self.pattern = f'{self.filepathBase}*{extension}'
-            self.pattern = self.pattern.translate({ord('['):'[[]', ord(']'):'[]]'})
+            self.pattern = self.pattern.translate(
+                {ord('['):'[[]', ord(']'):'[]]'}
+            )
             self.subtitleFiles += glob.glob(self.pattern)
         return self.subtitleFiles
 
@@ -203,7 +223,10 @@ class X265Encoder():
         self.command += ["-c:v", "libx265", "-pix_fmt", "yuv420p"]
 
     def _mapAudioStreams(self):
-        self.compatableAudioCodecs = ['mp3', 'wma', 'aac', 'ac3', 'dts', 'pcm', 'lpcm', 'mlp', 'dts-hd'] # flac alac
+        self.compatableAudioCodecs = [
+            'mp3', 'wma', 'aac',
+            'ac3', 'dts', 'pcm',
+            'lpcm', 'mlp', 'dts-hd'] # flac alac not included to save space
         self.streamCounter = 0
         for stream in self.file.audioStreams:
             self.command += ["-map", f'0:{stream["index"]}']
@@ -215,7 +238,10 @@ class X265Encoder():
 
 
     def _mapSubtitleStreams(self):
-        self.compatableSubtitleCodecs = ['sami', 'srt', 'ass', 'dvd_subtitle', 'ssa', 'sub', 'usf',  'xsub', 'subrip']
+        self.compatableSubtitleCodecs = [
+            'sami', 'srt', 'ass',
+            'dvd_subtitle', 'ssa', 'sub',
+            'usf',  'xsub', 'subrip']
         self.streamCounter = 0
         for stream in self.file.subtitleStreams:
             self.command += ["-map", f'0:{stream["index"]}']
@@ -230,7 +256,9 @@ class X265Encoder():
             self.subtitleInformation = self.subtitleFile.subtitleStreams
             self.streamCounter = 0
             for stream in self.subtitleInformation:
-                self.command += ["-map", f'{self.externalSubtitles.index(subtitle)+1}:{stream["index"]}']
+                self.command += [
+                    "-map",
+                    f'{self.externalSubtitles.index(subtitle)+1}:{stream["index"]}']
                 if stream['codec_name'] in self.compatableSubtitleCodecs:
                     self.command += [f'-c:s:{self.streamCounter}', 'copy']
                 else:
@@ -243,17 +271,28 @@ class X265Encoder():
             self.command += ["-map", f'0:{stream["index"]}']
 
     def _mapImages(self):
-        #
-        # ffmpeg 4.1 -disposition:v:s attached_pic outputs a file with disposition attached_pic = 0
-        # I have tried this with the ffmpeg example cover_art.mkv and several different commands to try to achieve an attached_pic disposition
-        # return False and skip the file
-        #
-        self.streamCounter = len(self.file.videoStreams) # obo gives current stream number
+        """
+            ffmpeg 4.1 -disposition:v:s attached_pic outputs a
+            file with disposition attached_pic = 0
+            I have tried this with the
+            ffmpeg example cover_art.mkv and
+            several different commands to try to achieve an
+            attached_pic disposition
+            return False and skip the file
+        """
+        # obo gives current stream number
+        self.streamCounter = len(self.file.videoStreams)
         for stream in self.file.imageStreams:
             return False
-            self.command += ["-map", f'0:{stream["index"]}']
-            self.command += [f'-c:v:{self.streamCounter}', 'copy']
-            self.command += [f'-disposition:v:{self.streamCounter}', 'attached_pic']
+            self.command += [
+                "-map",
+                f'0:{stream["index"]}']
+            self.command += [
+                f'-c:v:{self.streamCounter}',
+                'copy']
+            self.command += [
+                f'-disposition:v:{self.streamCounter}',
+                'attached_pic']
             self.streamCounter += 1
         return True
 
@@ -286,9 +325,10 @@ class X265Encoder():
         self._mapAudioStreams()
         self._mapSubtitleStreams()
         self._mapAttachments()
-        #self._mapImages
         if not self._mapImages():
-            logging.warning(f' {self.filepath} contains images, not handling')
+            logging.warning(
+                f' {self.filepath} contains images, not handling'
+            )
             failedFilepaths.append(self.filepath)
             self._restore()
             return False
@@ -314,7 +354,11 @@ logging.info("_"*80)
 library = MediaLibrary()
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"hn:p:sl", ["number=", "path=", "scan=", "listpaths="])
+    opts, args = getopt.getopt(
+        sys.argv[1:],
+        "hn:p:sl",
+        ["number=", "path=", "scan=", "listpaths="]
+    )
 except getopt.GetoptError:
     print("h265encode.py -p 'path' -n 'number'")
     sys.exit(2)
@@ -346,16 +390,21 @@ for filepath in convertFilepaths:
 
     #check json db if encoded before running encoder
     try:
-        if libraryEntry["video_codec"] == 'hevc' and libraryEntry["video_profile"] == 'Main':
+        if (libraryEntry["video_codec"] == 'hevc'
+            and libraryEntry["video_profile"] == 'Main'):
             continue
     except KeyError:
         continue
 
     encoder = X265Encoder(filepath)
-    if encoder.encode():
+    encodeResult = encoder.encode()
+    if encodeResult == 0:
         fileSpaceSaved = library.library["complete_files"][os.path.splitext(filepath)[0]+'.mkv']["space_saved"]
         spaceSaved += fileSpaceSaved
-        logging.info(f'     space saved {fileSpaceSaved/1000000}')
+        logging.info(f'     space saved {fileSpaceSaved/1_000_000}')
+    else:
+        errorMessage = f'ffmpeg failed with error: {encodeResult}'
+        library.markFailed(filepath, encodeResult)
 
 if len(failedFilepaths) > 0:
     print(" Some files failed, recommended manual conversion")
