@@ -11,10 +11,15 @@ class VideoInformation():
         self.filepath = fp
 
     def analyze(self):
-        self.command = ["ffprobe", "-v", "quiet", "-print_format", "json",
-            "-show_format", "-show_streams", '"'+self.filepath+'"']
+        self.command = [
+            "ffprobe", "-v", "quiet",
+            "-print_format", "json",
+            "-show_format", "-show_streams", '"'+self.filepath+'"'
+            ]
         try:
-            self.ffprobe = json.loads( subprocess.check_output( ' '.join(self.command) ) )
+            self.ffprobe = json.loads(
+                subprocess.check_output(' '.join(self.command))
+                )
         except subprocess.CalledProcessError:
             print('Error running ffprobe')
             print(f'command {" ".join(self.command)}')
@@ -86,14 +91,15 @@ class MediaLibrary():
             logging.info(f' MediaLibrary scanning {path}')
             for root, dir, files in os.walk(path):
                 for name in files:
-                    if(str.lower(os.path.splitext(name)[1])) not in self.videoFileTypes:
+                    if (str.lower(os.path.splitext(name)[1])
+                            not in self.videoFileTypes):
                         continue # not a video
                     self.filepath = os.path.join(root, name)
 
-                    if self.filepath in self.library["incomplete_files"]:
-                        continue
-                    if self.filepath in self.library["complete_files"]:
-                        continue
+                    if (self.filepath in self.library["incomplete_files"] or
+                        self.filepath in self.library["complete_files"] or
+                        self.filepath in self.library["failed_files"]):
+                        continue # file is already tracked
 
                     # Windows path limit. Fatal
                     if len(self.filepath) > 255:
@@ -365,10 +371,12 @@ except getopt.GetoptError:
 
 for opt, arg in opts:
     if opt == '-h':
-        print("h265encode.py -p 'path' -n 'number' -s 'scan media' -l 'list paths'")
+        print(
+            "h265encode.py -p 'path' -n 'number' -s 'scan media' -l 'list paths'"
+        )
         sys.exit()
     elif opt in ("-n", "--number"):
-        convertFilepaths = library.returnLibraryEntries(int(arg)):
+        convertFilepaths = library.returnLibraryEntries(int(arg))
     elif opt in ("-p", "--path"):
         library.addNewPath(os.path.abspath(arg))
         sys.exit()
