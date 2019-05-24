@@ -79,6 +79,7 @@ class MediaLibrary():
             self.library['paths'] = []
             self.library['incomplete_files'] = {}
             self.library['complete_files'] = {}
+            self.library['failed_files'] = {}
             self.library['space_saved'] = 0
             #scanPathForMedia(jsonLibrary)
             self._libraryCommit()
@@ -111,7 +112,11 @@ class MediaLibrary():
                     if self.analyzeResult == False:
                         logging.info( f' VideoInformation failed reading {self.filepath}')
                         continue
-                    self.entry = self.info.simpleEntry()
+                    try:
+                        self.entry = self.info.simpleEntry()
+                    except KeyError as error:
+                        self.markFailed(self.filepath, error)
+                        continue
                     if self.info.isEncoded():
                         self.library['complete_files'][self.filepath] = self.entry
                         self.library['complete_files'][self.filepath]['original_codec'] = 'hevc'
@@ -142,6 +147,29 @@ class MediaLibrary():
         self.library["complete_files"][self.newFilepath] = self.newEntry
         self.library["space_saved"] += self.spaceSaved
         self._libraryCommit()
+
+    def markFailed(self, filepath, errorMessage):
+        """
+            create entry in failed_files and
+            remove file from incomplete_files if it exists
+        """
+        if filepath in self.library['incomplete_files']:
+            entry = self.library['incomplete_files'].pop(filepath)
+        else:
+            entry = {}
+            entry['filepath'] = filepath
+        entry['error_message'] = str(errorMessage)
+        self.library['failed_files'][filepath] = entry
+        self._libraryCommit()
+        logging.error(f' {filepath} failed to convert, moving to failed_files')
+
+    def showFailed(self):
+        """ print failed_files dictionary to stdout """
+        for entry in self.library['failed_files']:
+            fp = entry['filepath']
+            errorMessage = entry['error_message']
+            print("path: %s\nerror message: %s", (fp, errorMessage))
+
 
     def addNewPath(self, filepath):
         self.mediaDirectory = os.path.abspath(filepath)
@@ -346,12 +374,13 @@ class X265Encoder():
         if self.result == 0:
             os.remove(self.backupFilepath)
             library.markComplete(self.filepath)
-            return True
         else:
-            logging.error(f' failed encoding {self.filepath}, restoring original file')
+            logging.error(
+                f' failed encoding {self.filepath}, restoring original file'
+            )
             failedFilepaths.append(self.filepath)
             self._restore()
-            return False
+        return self.result
 
 scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
 logging.basicConfig(filename=scriptdir + '/log.txt', level=logging.DEBUG)
