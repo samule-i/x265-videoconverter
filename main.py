@@ -166,9 +166,11 @@ class MediaLibrary():
     def showFailed(self):
         """ print failed_files dictionary to stdout """
         for entry in self.library['failed_files']:
-            fp = entry['filepath']
-            errorMessage = entry['error_message']
-            print("path: %s\nerror message: %s", (fp, errorMessage))
+            item = self.library['failed_files'][entry]
+            fp = entry
+            errorMessage = item['error_message']
+            print(f'path: {fp}\nerror message: {errorMessage}\n')
+        sys.exit()
 
 
     def addNewPath(self, filepath):
@@ -391,17 +393,17 @@ library = MediaLibrary()
 try:
     opts, args = getopt.getopt(
         sys.argv[1:],
-        "hn:p:sl",
+        "hn:p:sle",
         ["number=", "path=", "scan=", "listpaths="]
     )
-except getopt.GetoptError:
-    print("h265encode.py -p 'path' -n 'number'")
+except getopt.GetoptError as err:
+    print(str(err))
     sys.exit(2)
 
 for opt, arg in opts:
     if opt == '-h':
         print(
-            "h265encode.py -p 'path' -n 'number' -s 'scan media' -l 'list paths'"
+            "h265encode.py -p 'path' -n 'number' -s 'scan media' -l 'list paths' -e 'list errors'"
         )
         sys.exit()
     elif opt in ("-n", "--number"):
@@ -414,6 +416,9 @@ for opt, arg in opts:
         sys.exit()
     elif opt in ("-l", "--listpaths"):
         print(library.library['paths'])
+        sys.exit()
+    elif opt in ("-e"):
+        library.showFailed()
         sys.exit()
 
 failedFilepaths = []
