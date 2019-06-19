@@ -87,43 +87,49 @@ class MediaLibrary():
         with open(self.libraryFilePath) as jsonFile:
             self.library = json.load(jsonFile)
 
-    def scan(self):
-        for path in self.library["paths"]:
-            logging.info(f' MediaLibrary scanning {path}')
-            for root, dir, files in os.walk(path):
-                for name in files:
-                    if (str.lower(os.path.splitext(name)[1])
-                            not in self.videoFileTypes):
-                        continue # not a video
-                    self.filepath = os.path.join(root, name)
+    def scan(self, path):
+        """Searching through files in path that are not in database.
+           ffprobe them and add metadata to database."""
+        logging.info(f' MediaLibrary scanning {path}')
+        for root, dir, files in os.walk(path):
+            for name in files:
+                if (str.lower(os.path.splitext(name)[1])
+                        not in self.videoFileTypes):
+                    continue # not a video
+                self.filepath = os.path.join(root, name)
 
-                    if (self.filepath in self.library["incomplete_files"] or
-                        self.filepath in self.library["complete_files"] or
-                        self.filepath in self.library["failed_files"]):
-                        continue # file is already tracked
+                if (self.filepath in self.library["incomplete_files"] or
+                    self.filepath in self.library["complete_files"] or
+                    self.filepath in self.library["failed_files"]):
+                    continue # file is already tracked
 
-                    # Windows path limit. Fatal
-                    if len(self.filepath) > 255:
-                        continue
-                    print(self.filepath)
+                # Windows path limit. Fatal
+                if len(self.filepath) > 255:
+                    continue
+                print(self.filepath)
 
-                    self.info = VideoInformation(self.filepath)
-                    self.analyzeResult = self.info.analyze()
-                    if self.analyzeResult == False:
-                        logging.info( f' VideoInformation failed reading {self.filepath}')
-                        continue
-                    try:
-                        self.entry = self.info.simpleEntry()
-                    except KeyError as error:
-                        self.markFailed(self.filepath, error)
-                        continue
-                    if self.info.isEncoded():
-                        self.library['complete_files'][self.filepath] = self.entry
-                        self.library['complete_files'][self.filepath]['original_codec'] = 'hevc'
-                        self.library['complete_files'][self.filepath]['space_saved'] = 0
-                    else:
-                        self.library["incomplete_files"][self.filepath] = self.entry
-            self._libraryCommit()
+                self.info = VideoInformation(self.filepath)
+                self.analyzeResult = self.info.analyze()
+                if self.analyzeResult == False:
+                    error = f'VideoInformation failed reading {self.filepath}'
+                    logging.info(error)
+                    failedEntry = {}
+                    failedEntry['filepath'] = self.filepath
+                    failedEntry['errorMessage'] = error
+                    self.library['failed_files'][self.filepath] = failedEntry
+                    continue
+                try:
+                    self.entry = self.info.simpleEntry()
+                except KeyError as error:
+                    self.markFailed(self.filepath, error)
+                    continue
+                if self.info.isEncoded():
+                    self.library['complete_files'][self.filepath] = self.entry
+                    self.library['complete_files'][self.filepath]['original_codec'] = 'hevc'
+                    self.library['complete_files'][self.filepath]['space_saved'] = 0
+                else:
+                    self.library["incomplete_files"][self.filepath] = self.entry
+        self._libraryCommit()
         print("Scan completed")
 
     def markComplete(self, filepath):
@@ -170,7 +176,6 @@ class MediaLibrary():
             fp = entry
             errorMessage = item['error_message']
             print(f'path: {fp}\nerror message: {errorMessage}\n')
-        sys.exit()
 
 
     def addNewPath(self, filepath):
@@ -188,6 +193,7 @@ class MediaLibrary():
         return self.library["paths"]
 
     def returnLibraryEntries(self, count):
+        """Returns a list of filepaths from the top of the database"""
         self.dictionaryIterator = iter(self.library["incomplete_files"])
         self.entryList = []
         for i in range(count):
@@ -199,6 +205,32 @@ class MediaLibrary():
         if len(self.entryList) == 0:
             logging.error(' media conversion completed, scan may add new media')
             sys.exit(100)
+        return self.entryList
+
+    def returnDirectory(self, directory):
+        """Returns all filepaths from directory in argument"""
+        directory = os.path.abspath(directory)
+        if not os.path.isdir(directory):
+            print(f'{directory} is not a valid path, exiting')
+            sys.exit()
+        self.scan(directory)
+        self.entryList = []
+        for file in os.listdir(directory):
+            fp = directory + '\\' + file
+            if os.path.splitext(fp)[1] not in self.videoFileTypes:
+                continue
+            if fp in self.library['complete_files']:
+                print(f'{fp} already completed')
+                continue
+            if fp in self.library['failed_files']:
+                print(f'{fp} has already failed conversion')
+                continue
+            try:
+                self.entryList.append(fp)
+            except KeyError as errorMessage:
+                logging.error(errorMessage)
+                print(errorMessage)
+                continue
         return self.entryList
 
     def _libraryCommit(self):
@@ -394,7 +426,7 @@ try:
     opts, args = getopt.getopt(
         sys.argv[1:],
         "hn:p:sle",
-        ["number=", "path=", "scan=", "listpaths="]
+        ["number=", "path=", "scan=", "listpaths=", "focus_directory="]
     )
 except getopt.GetoptError as err:
     print(str(err))
@@ -408,11 +440,15 @@ for opt, arg in opts:
         sys.exit()
     elif opt in ("-n", "--number"):
         convertFilepaths = library.returnLibraryEntries(int(arg))
+    elif opt in ("--focus_directory"):
+        print(f'Focusing {arg}')
+        convertFilepaths = library.returnDirectory(arg)
     elif opt in ("-p", "--path"):
         library.addNewPath(os.path.abspath(arg))
         sys.exit()
     elif opt in ("-s", "--scan"):
-        library.scan()
+        for fp in library.listPaths():
+            library.scan(fp)
         sys.exit()
     elif opt in ("-l", "--listpaths"):
         print(library.library['paths'])
