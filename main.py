@@ -174,9 +174,11 @@ class MediaLibrary():
         for entry in self.library['failed_files']:
             item = self.library['failed_files'][entry]
             fp = entry
-            errorMessage = item['error_message']
+            try:
+                errorMessage = item['error_message']
+            except KeyError:
+                errorMessage = 'unkown error'
             print(f'path: {fp}\nerror message: {errorMessage}\n')
-
 
     def addNewPath(self, filepath):
         self.mediaDirectory = os.path.abspath(filepath)
@@ -404,7 +406,13 @@ class X265Encoder():
         self.command += [f'"{self.outputFilepath}"']
 
         print(' '.join(self.command)+'\n')
-        self.result = subprocess.call(' '.join(self.command) )
+        try:
+            self.result = subprocess.call(' '.join(self.command) )
+        except KeyboardInterrupt:
+            print('cleaning up')
+            logging.error(' Keyboard interrupt')
+            self._restore()
+            sys.exit()
         if self.result == 0:
             os.remove(self.backupFilepath)
             library.markComplete(self.filepath)
