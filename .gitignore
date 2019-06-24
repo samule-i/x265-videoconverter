@@ -1,2 +1,5 @@
 *.txt
 *.json
+.gitignore
+video_samples
+*.backup
