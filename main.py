@@ -370,7 +370,7 @@ class X265Encoder():
 
         if not self._checkValid():
             print('invalid file')
-            return False
+            return 'invalid file'
 
         self.file = VideoInformation(self.filepath)
         self.file.analyze()
@@ -378,7 +378,7 @@ class X265Encoder():
         if self.file.isEncoded():
             logging.error(f' skipping: {self.filepath} is already encoded')
             library.markComplete(self.filepath)
-            return False
+            return 'already encoded'
 
         self._backup()
 
@@ -401,7 +401,7 @@ class X265Encoder():
             )
             failedFilepaths.append(self.filepath)
             self._restore()
-            return False
+            return 'imageStream found'
 
         self.command += [f'"{self.outputFilepath}"']
 
@@ -443,7 +443,7 @@ except getopt.GetoptError as err:
 for opt, arg in opts:
     if opt == '-h':
         print(
-            "h265encode.py -p 'path' -n 'number' -s 'scan media' -l 'list paths' -e 'list errors'"
+            "h265encode.py options:\n-p 'add new path'\n-n 'number of files'\n-s 'scan media'\n-l 'list paths'\n-e 'list errors'\n--focus_directory 'convert a specific directory now'"
         )
         sys.exit()
     elif opt in ("-n", "--number"):
