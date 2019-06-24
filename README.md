@@ -1,7 +1,12 @@
 # x265-converter
 A python3 script to track and convert media to HEVC format
 
-#example usage:
+# big warning!
+
+This script converts to hevc 4-bit mode by default, because that is what my player can handle at the moment, I will be changing to 10-bit or just letting defaults take over, but if you want to change to 10-bit you need to edit the source where it specifies `pix_fmt yuv420` and `stream["profile"] != Main`.  
+Also, possibly where `libraryEntry["video_profile"] == 'Main'` comes up.
+
+# example usage:
 
 `main.py -p /path/to/media` adds a new path for scanning  
 `main.py -s` scans and adds to db  
