@@ -44,7 +44,8 @@ class VideoInformation():
         for stream in self.videoStreams:
             if stream["codec_name"] != 'hevc':
                 return False
-            elif stream["profile"] != 'Main':
+            elif (stream["profile"] != 'Main'
+                and low_profile == True):
                 return False
             else:
                 return True
@@ -291,7 +292,9 @@ class X265Encoder():
     def _mapVideoStreams(self):
         for stream in self.file.videoStreams:
             self.command += ["-map", f'0:{stream["index"]}']
-        self.command += ["-c:v", "libx265", "-pix_fmt", "yuv420p"]
+        self.command += ["-c:v", "libx265"]
+        if low_profile == True:
+            self.command += ["-pix_fmt", "yuv420p"]
 
     def _mapAudioStreams(self):
         self.compatableAudioCodecs = [
@@ -428,6 +431,7 @@ class X265Encoder():
 scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
 logging.basicConfig(filename=scriptdir + '/log.txt', level=logging.DEBUG)
 logging.info("_"*80)
+low_profile = False
 
 library = MediaLibrary()
 
@@ -435,17 +439,37 @@ try:
     opts, args = getopt.getopt(
         sys.argv[1:],
         "hn:p:sle",
-        ["number=", "path=", "scan=", "listpaths=", "focus_directory="]
+        ["number=", "path=", "scan=", "listpaths=", "focus-directory=", "low-profile"]
     )
 except getopt.GetoptError as err:
     print(str(err))
     sys.exit(2)
 
+helpString = """
+A file conversion utility that will attempt to convert files in media directories to HEVC content with the priority of saving disk space.
+HEVC is known for having much smaller file sizes than h264 and much smaller than older codecs such as AVC.
+Some devices can not play HEVC as it is a reasonably new codec, so make sure your player can handle HEVC before converting a library.
+
+It should be reasonably safe to use ctrl+c to cancel during a conversion, the script manages to abort the conversion and restore a backup/
+I recommend maintaing your own backups.
+
+usage:
+    -p "Add a new path to track"
+    -n "Number of files to attempt to convert"
+    -s "Scan tracked paths for new media"
+    -l "List tracked paths"
+    -e "List errors occurred"
+    --focus-directory "Start converting files in directory immediately"
+    --low-profile "Convert into 4-bit or 'Main' profile HEVC codec, for weaker devices"
+"""
+for opt, arg in opts:
+    if opt == "--low-profile":
+        low_profile = True
+        logging.info('working in low profile mode for compatability with weaker hardware')
+
 for opt, arg in opts:
     if opt == '-h':
-        print(
-            "h265encode.py options:\n-p 'add new path'\n-n 'number of files'\n-s 'scan media'\n-l 'list paths'\n-e 'list errors'\n--focus_directory 'convert a specific directory now'"
-        )
+        print(helpString)
         sys.exit()
     elif opt in ("-n", "--number"):
         convertFilepaths = library.returnLibraryEntries(int(arg))
@@ -478,7 +502,11 @@ for filepath in convertFilepaths:
     #check json db if encoded before running encoder
     try:
         if (libraryEntry["video_codec"] == 'hevc'
-            and libraryEntry["video_profile"] == 'Main'):
+            and low_profile == False):
+            continue
+        elif (libraryEntry["video_codec"] == 'hevc'
+            and libraryEntry["video_profile"] == 'Main'
+            and low_profile == True):
             continue
     except KeyError:
         continue
