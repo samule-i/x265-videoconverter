@@ -14,13 +14,14 @@ class VideoInformation():
         self.command = [
             "ffprobe", "-v", "quiet",
             "-print_format", "json",
-            "-show_format", "-show_streams", '"'+self.filepath+'"'
+            "-show_format", "-show_streams", self.filepath
             ]
         try:
             self.ffprobe = json.loads(
-                subprocess.check_output(' '.join(self.command))
+                subprocess.check_output(self.command)
                 )
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as error:
+            logging.error(error)
             print('Error running ffprobe')
             print(f'command {" ".join(self.command)}')
             return False
@@ -383,7 +384,7 @@ class X265Encoder():
         self._backup()
 
         self.command = ["ffmpeg", "-n", "-hide_banner"]
-        self.command += ["-i", f'"{self.backupFilepath}"']
+        self.command += ["-i", self.backupFilepath]
 
         self.externalSubtitles = self._subtitlePaths()
         for subtitle in self.externalSubtitles:
@@ -403,11 +404,11 @@ class X265Encoder():
             self._restore()
             return 'imageStream found'
 
-        self.command += [f'"{self.outputFilepath}"']
+        self.command += [self.outputFilepath]
 
         print(' '.join(self.command)+'\n')
         try:
-            self.result = subprocess.call(' '.join(self.command) )
+            self.result = subprocess.call(self.command)
         except KeyboardInterrupt:
             print('cleaning up')
             logging.error(' Keyboard interrupt')
