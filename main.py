@@ -44,7 +44,8 @@ class VideoInformation():
         for stream in self.videoStreams:
             if stream["codec_name"] != 'hevc':
                 return False
-            elif stream["profile"] != 'Main':
+            elif (stream["profile"] != 'Main'
+                and low_profile == True):
                 return False
             else:
                 return True
@@ -291,7 +292,9 @@ class X265Encoder():
     def _mapVideoStreams(self):
         for stream in self.file.videoStreams:
             self.command += ["-map", f'0:{stream["index"]}']
-        self.command += ["-c:v", "libx265", "-pix_fmt", "yuv420p"]
+        self.command += ["-c:v", "libx265"]
+        if low_profile == True:
+            self.command += ["-pix_fmt", "yuv420p"]
 
     def _mapAudioStreams(self):
         self.compatableAudioCodecs = [
@@ -428,6 +431,7 @@ class X265Encoder():
 scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
 logging.basicConfig(filename=scriptdir + '/log.txt', level=logging.DEBUG)
 logging.info("_"*80)
+low_profile = False
 
 library = MediaLibrary()
 
@@ -435,7 +439,7 @@ try:
     opts, args = getopt.getopt(
         sys.argv[1:],
         "hn:p:sle",
-        ["number=", "path=", "scan=", "listpaths=", "focus_directory="]
+        ["number=", "path=", "scan=", "listpaths=", "focus-directory=", "low-profile"]
     )
 except getopt.GetoptError as err:
     print(str(err))
@@ -478,7 +482,11 @@ for filepath in convertFilepaths:
     #check json db if encoded before running encoder
     try:
         if (libraryEntry["video_codec"] == 'hevc'
-            and libraryEntry["video_profile"] == 'Main'):
+            and low_profile == False):
+            continue
+        elif (libraryEntry["video_codec"] == 'hevc'
+            and libraryEntry["video_profile"] == 'Main'
+            and low_profile == True):
             continue
     except KeyError:
         continue
