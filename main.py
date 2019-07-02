@@ -183,7 +183,7 @@ class MediaLibrary:
         try:
             self.newSize = os.path.getsize(self.newFilepath)
         except FileNotFoundError:
-            logging.warn("File not found, assuming filename character encoding error")
+            logging.warning("File not found, assuming filename character encoding error")
             self.newSize = self.newEntry["file_size"]
 
         self.spaceSaved = int(self.newEntry["file_size"]) - int(self.newSize)
@@ -268,7 +268,7 @@ class MediaLibrary:
                 logging.debug(f"{fp} already completed")
                 continue
             if fp in self.library["failed_files"]:
-                logging.warn(f"{fp} has already failed conversion")
+                logging.warning(f"{fp} has already failed conversion")
                 continue
             try:
                 self.entryList.append(fp)
@@ -468,13 +468,13 @@ def convert_files(convertFilepaths, library):
         else:
             logging.error(f"ffmpeg failed with error: {encodeResult}")
             library.markFailed(filepath, encodeResult)
-            failedFilepaths += filepath
+            failedFilepaths.append(filepath)
 
     if len(failedFilepaths) > 0:
         exitcode = 1
-        logging.warn("Some files failed, recommended manual conversion")
+        logging.warning("Some files failed, recommended manual conversion")
         for filename in failedFilepaths:
-            logging.warn(f"failed: {filename}")
+            logging.warning(f"failed: {filename}")
     logging.info(f"completed. space saved this run: {spaceSaved // 1024**2}MB")
     sys.exit(exitcode)
 
