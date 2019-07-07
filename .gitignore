@@ -3,3 +3,4 @@
 .gitignore
 video_samples
 *.backup
+.idea
