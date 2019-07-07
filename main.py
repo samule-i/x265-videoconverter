@@ -161,6 +161,7 @@ class MediaLibrary:
         print("Scan completed")
 
     def markComplete(self, filepath):
+        """Move entry from incomplete_files to complete_files."""
         logging.info(f" Completed transcoding {filepath}")
         self.filepath = filepath
         self.newFilepath = os.path.splitext(self.filepath)[0] + ".mkv"
@@ -185,7 +186,7 @@ class MediaLibrary:
     def markFailed(self, filepath, errorMessage):
         """
             create entry in failed_files and
-            remove file from incomplete_files if it exists
+            remove file from incomplete_files if it exists.
         """
         if filepath in self.library["incomplete_files"]:
             entry = self.library["incomplete_files"].pop(filepath)
@@ -198,7 +199,7 @@ class MediaLibrary:
         logging.error(f" {filepath} failed to convert, moving to failed_files")
 
     def showFailed(self):
-        """ print failed_files dictionary to stdout """
+        """print failed_files dictionary to stdout."""
         for entry in self.library["failed_files"]:
             item = self.library["failed_files"][entry]
             fp = entry
@@ -209,6 +210,7 @@ class MediaLibrary:
             print(f"path: {fp}\nerror message: {errorMessage}\n")
 
     def addNewPath(self, filepath):
+        """Create a new path entry in library."""
         self.mediaDirectory = os.path.abspath(filepath)
         if not os.path.isdir(filepath):
             print("not valid directory")
@@ -220,10 +222,11 @@ class MediaLibrary:
         self._libraryCommit()
 
     def listPaths(self):
+        """List tracked paths stored in library."""
         return self.library["paths"]
 
     def returnLibraryEntries(self, count):
-        """Returns a list of filepaths from the top of the database"""
+        """Return a list of filepaths from the top of the database."""
         self.dictionaryIterator = iter(self.library["incomplete_files"])
         self.entryList = []
         for i in range(count):
@@ -238,7 +241,7 @@ class MediaLibrary:
         return self.entryList
 
     def returnDirectory(self, directory):
-        """Returns all filepaths from directory in argument"""
+        """Return all filepaths from directory in argument."""
         directory = os.path.abspath(directory)
         if not os.path.isdir(directory):
             print(f"{directory} is not a valid path, exiting")
