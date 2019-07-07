@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-import os
-import sys
 import getopt
-import subprocess
-import logging
-import json
 import glob
+import json
+import logging
+import os
+import subprocess
+
+import sys
 
 
 class VideoInformation:
@@ -84,18 +85,18 @@ class MediaLibrary:
             os.path.abspath(os.path.dirname(sys.argv[0])) + "/library.json"
         )
         self.videoFileTypes = [
-            ".mkv",
-            ".mp4",
+            ".3gp",
             ".avi",
-            ".wmv",
             ".flv",
+            ".mkv",
             ".mov",
+            ".mp4",
+            ".mpg",
             ".ogm",
             ".ogv",
-            ".mpg",
             ".vob",
             ".webm",
-            ".3gp",
+            ".wmv",
         ]
 
         if not os.path.isfile(self.libraryFilePath):
@@ -323,15 +324,15 @@ class X265Encoder:
 
     def _mapAudioStreams(self):
         self.compatableAudioCodecs = [
-            "mp3",
-            "wma",
             "aac",
             "ac3",
             "dts",
-            "pcm",
+            "dts-hd",
             "lpcm",
             "mlp",
-            "dts-hd",
+            "mp3",
+            "pcm",
+            "wma",
         ]  # flac alac not included to save space
         self.streamCounter = 0
         for stream in self.file.audioStreams:
@@ -344,15 +345,15 @@ class X265Encoder:
 
     def _mapSubtitleStreams(self):
         self.compatableSubtitleCodecs = [
-            "sami",
-            "srt",
             "ass",
             "dvd_subtitle",
+            "sami",
+            "srt",
             "ssa",
             "sub",
+            "subrip",
             "usf",
             "xsub",
-            "subrip",
         ]
         self.streamCounter = 0
         for stream in self.file.subtitleStreams:
