@@ -12,6 +12,7 @@ import sys
 class VideoInformation:
     def __init__(self, fp):
         self.filepath = fp
+        self.low_profile = False
 
     def analyze(self):
         self.command = [
@@ -58,7 +59,7 @@ class VideoInformation:
         for stream in self.videoStreams:
             if stream["codec_name"] != "hevc":
                 return False
-            elif stream["profile"] != "Main" and low_profile is True:
+            elif stream["profile"] != "Main" and self.low_profile is True:
                 return False
             else:
                 return True
@@ -277,6 +278,7 @@ class X265Encoder:
         self.filepathBase = os.path.splitext(self.filepath)[0]
         self.backupFilepath = self.filepath + ".bk"
         self.outputFilepath = self.filepathBase + ".mkv"
+        self.low_profile = False
 
     def _backup(self):
         if os.path.isfile(self.backupFilepath):
@@ -322,7 +324,7 @@ class X265Encoder:
         for stream in self.file.videoStreams:
             self.command += ["-map", f'0:{stream["index"]}']
         self.command += ["-c:v", "libx265"]
-        if low_profile is True:
+        if self.low_profile is True:
             self.command += ["-pix_fmt", "yuv420p"]
 
     def _mapAudioStreams(self):
@@ -413,11 +415,14 @@ class X265Encoder:
             return "invalid file"
 
         self.file = VideoInformation(self.filepath)
+        if self.low_profile is True:
+            self.file.low_profile = True
         self.file.analyze()
 
         if self.file.isEncoded():
-            logging.error(f" skipping: {self.filepath} is already encoded")
-            library.markComplete(self.filepath)
+            alreadyX265 = (f'{self.filepath} already encoded,'
+                           'moved to completed without doing anything')
+            logging.error(alreadyX265)
             return "already encoded"
 
         self._backup()
@@ -436,10 +441,11 @@ class X265Encoder:
         self._mapSubtitleStreams()
         self._mapAttachments()
         if not self._mapImages():
-            logging.warning(f" {self.filepath} contains images, not handling")
-            failedFilepaths.append(self.filepath)
+            imageStreamError = (f'filepath had an imageStream'
+                                'ignoring file')
+            logging.error(imageStreamError)
             self._restore()
-            return "imageStream found"
+            return "failed"
 
         self.command += [self.outputFilepath]
 
@@ -453,12 +459,13 @@ class X265Encoder:
             sys.exit()
         if self.result == 0:
             os.remove(self.backupFilepath)
-            library.markComplete(self.filepath)
+            return "success"
         else:
-            logging.error(f" failed encoding {self.filepath}, restoring original file")
-            failedFilepaths.append(self.filepath)
+            ffmpegError = (f"failed encoding {self.filepath},"
+                           "restoring original file")
+            logging.error(ffmpegError)
             self._restore()
-        return self.result
+            return "failed"
 
 
 scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -548,20 +555,27 @@ for filepath in convertFilepaths:
         continue
 
     encoder = X265Encoder(filepath)
+    if low_profile is True:
+        encoder.low_profile = True
     encodeResult = encoder.encode()
-    if encodeResult == 0:
+
+    if encodeResult == "success":
+        library.markComplete(filepath)
         fileSpaceSaved = library.library["complete_files"][
             os.path.splitext(filepath)[0] + ".mkv"
         ]["space_saved"]
         spaceSaved += fileSpaceSaved
-        logging.info(f"     space saved {fileSpaceSaved/1_000_000}")
+        logging.info(f"space saved {fileSpaceSaved/1_000_000}")
+    elif encodeResult == "already encoded":
+        library.markComplete(filepath)
     else:
-        errorMessage = f"ffmpeg failed with error: {encodeResult}"
-        library.markFailed(filepath, encodeResult)
+        failedFilepaths.append(filepath)
+        errorMessage = f"x265 convert failed with error: {encodeResult}"
+        library.markFailed(filepath, errorMessage)
 
 if len(failedFilepaths) > 0:
     print(" Some files failed, recommended manual conversion")
     for filename in failedFilepaths:
         print(f" failed: {filename}")
 logging.info(" completed")
-logging.info(f" space saved this run: {int(spaceSaved/1000000)}mb")
+logging.info(f"space saved this run: {int(spaceSaved/1_000_000)}mb")
