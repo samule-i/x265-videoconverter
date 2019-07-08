@@ -468,114 +468,119 @@ class X265Encoder:
             return "failed"
 
 
-scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
-logging.basicConfig(filename=scriptdir + "/log.txt", level=logging.DEBUG)
-logging.info("_" * 80)
-low_profile = False
+def main():
+    scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    logging.basicConfig(filename=scriptdir + "/log.txt", level=logging.DEBUG)
+    logging.info("_" * 80)
+    low_profile = False
 
-library = MediaLibrary()
+    library = MediaLibrary()
 
-try:
-    opts, args = getopt.getopt(
-        sys.argv[1:],
-        "hn:p:sle",
-        ["number=", "path=", "scan=", "listpaths=", "focus-directory=", "low-profile"],
-    )
-except getopt.GetoptError as err:
-    print(str(err))
-    sys.exit(2)
-
-helpString = """
-A file conversion utility that will attempt to convert files in media directories to HEVC content with the priority of saving disk space.
-HEVC is known for having much smaller file sizes than h264 and much smaller than older codecs such as AVC.
-Some devices can not play HEVC as it is a reasonably new codec, so make sure your player can handle HEVC before converting a library.
-
-It should be reasonably safe to use ctrl+c to cancel during a conversion, the script manages to abort the conversion and restore a backup/
-I recommend maintaing your own backups.
-
-usage:
-    -p "Add a new path to track"
-    -n "Number of files to attempt to convert"
-    -s "Scan tracked paths for new media"
-    -l "List tracked paths"
-    -e "List errors occurred"
-    --focus-directory "Start converting files in directory immediately"
-    --low-profile "Convert into 4-bit or 'Main' profile HEVC codec, for weaker devices"
-"""
-for opt, arg in opts:
-    if opt == "--low-profile":
-        low_profile = True
-        logging.info(
-            "working in low profile mode for compatability with weaker hardware"
-        )
-
-for opt, arg in opts:
-    if opt == "-h":
-        print(helpString)
-        sys.exit()
-    elif opt in ("-n", "--number"):
-        convertFilepaths = library.returnLibraryEntries(int(arg))
-    elif opt in ("--focus_directory"):
-        print(f"Focusing {arg}")
-        convertFilepaths = library.returnDirectory(arg)
-    elif opt in ("-p", "--path"):
-        library.addNewPath(os.path.abspath(arg))
-        sys.exit()
-    elif opt in ("-s", "--scan"):
-        for fp in library.listPaths():
-            library.scan(fp)
-        sys.exit()
-    elif opt in ("-l", "--listpaths"):
-        print(library.library["paths"])
-        sys.exit()
-    elif opt in ("-e"):
-        library.showFailed()
-        sys.exit()
-
-failedFilepaths = []
-spaceSaved = 0
-
-# Can't be changes whilst iterating dicts
-for filepath in convertFilepaths:
-
-    print(filepath)
-    libraryEntry = library.library["incomplete_files"][filepath]
-
-    # check json db if encoded before running encoder
     try:
-        if libraryEntry["video_codec"] == "hevc" and low_profile is False:
+        opts, args = getopt.getopt(
+            sys.argv[1:],
+            "hn:p:sle",
+            ["number=", "path=", "scan=", "listpaths=", "focus-directory=", "low-profile"],
+        )
+    except getopt.GetoptError as err:
+        print(str(err))
+        sys.exit(2)
+
+    helpString = """
+    A file conversion utility that will attempt to convert files in media directories to HEVC content with the priority of saving disk space.
+    HEVC is known for having much smaller file sizes than h264 and much smaller than older codecs such as AVC.
+    Some devices can not play HEVC as it is a reasonably new codec, so make sure your player can handle HEVC before converting a library.
+
+    It should be reasonably safe to use ctrl+c to cancel during a conversion, the script manages to abort the conversion and restore a backup/
+    I recommend maintaing your own backups.
+
+    usage:
+        -p "Add a new path to track"
+        -n "Number of files to attempt to convert"
+        -s "Scan tracked paths for new media"
+        -l "List tracked paths"
+        -e "List errors occurred"
+        --focus-directory "Start converting files in directory immediately"
+        --low-profile "Convert into 4-bit or 'Main' profile HEVC codec, for weaker devices"
+    """
+    for opt, arg in opts:
+        if opt == "--low-profile":
+            low_profile = True
+            logging.info(
+                "working in low profile mode for compatability with weaker hardware"
+            )
+
+    for opt, arg in opts:
+        if opt == "-h":
+            print(helpString)
+            sys.exit()
+        elif opt in ("-n", "--number"):
+            convertFilepaths = library.returnLibraryEntries(int(arg))
+        elif opt in ("--focus_directory"):
+            print(f"Focusing {arg}")
+            convertFilepaths = library.returnDirectory(arg)
+        elif opt in ("-p", "--path"):
+            library.addNewPath(os.path.abspath(arg))
+            sys.exit()
+        elif opt in ("-s", "--scan"):
+            for fp in library.listPaths():
+                library.scan(fp)
+            sys.exit()
+        elif opt in ("-l", "--listpaths"):
+            print(library.library["paths"])
+            sys.exit()
+        elif opt in ("-e"):
+            library.showFailed()
+            sys.exit()
+
+    failedFilepaths = []
+    spaceSaved = 0
+
+    # Can't be changes whilst iterating dicts
+    for filepath in convertFilepaths:
+
+        print(filepath)
+        libraryEntry = library.library["incomplete_files"][filepath]
+
+        # check json db if encoded before running encoder
+        try:
+            if libraryEntry["video_codec"] == "hevc" and low_profile is False:
+                continue
+            elif (
+                libraryEntry["video_codec"] == "hevc"
+                and libraryEntry["video_profile"] == "Main"
+                and low_profile is True
+            ):
+                continue
+        except KeyError:
             continue
-        elif (
-            libraryEntry["video_codec"] == "hevc"
-            and libraryEntry["video_profile"] == "Main"
-            and low_profile is True
-        ):
-            continue
-    except KeyError:
-        continue
 
-    encoder = X265Encoder(filepath)
-    if low_profile is True:
-        encoder.low_profile = True
-    encodeResult = encoder.encode()
+        encoder = X265Encoder(filepath)
+        if low_profile is True:
+            encoder.low_profile = True
+        encodeResult = encoder.encode()
 
-    if encodeResult == "success":
-        library.markComplete(filepath)
-        fileSpaceSaved = library.library["complete_files"][
-            os.path.splitext(filepath)[0] + ".mkv"
-        ]["space_saved"]
-        spaceSaved += fileSpaceSaved
-        logging.info(f"space saved {fileSpaceSaved/1_000_000}")
-    elif encodeResult == "already encoded":
-        library.markComplete(filepath)
-    else:
-        failedFilepaths.append(filepath)
-        errorMessage = f"x265 convert failed with error: {encodeResult}"
-        library.markFailed(filepath, errorMessage)
+        if encodeResult == "success":
+            library.markComplete(filepath)
+            fileSpaceSaved = library.library["complete_files"][
+                os.path.splitext(filepath)[0] + ".mkv"
+            ]["space_saved"]
+            spaceSaved += fileSpaceSaved
+            logging.info(f"space saved {fileSpaceSaved/1_000_000}")
+        elif encodeResult == "already encoded":
+            library.markComplete(filepath)
+        else:
+            failedFilepaths.append(filepath)
+            errorMessage = f"x265 convert failed with error: {encodeResult}"
+            library.markFailed(filepath, errorMessage)
 
-if len(failedFilepaths) > 0:
-    print(" Some files failed, recommended manual conversion")
-    for filename in failedFilepaths:
-        print(f" failed: {filename}")
-logging.info(" completed")
-logging.info(f"space saved this run: {int(spaceSaved/1_000_000)}mb")
+    if len(failedFilepaths) > 0:
+        print(" Some files failed, recommended manual conversion")
+        for filename in failedFilepaths:
+            print(f" failed: {filename}")
+    logging.info(" completed")
+    logging.info(f"space saved this run: {int(spaceSaved/1_000_000)}mb")
+
+
+if __name__ == "__main__":
+    main()
