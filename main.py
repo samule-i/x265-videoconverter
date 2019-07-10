@@ -476,14 +476,14 @@ def main():
     a lossy operation. though it should be unnoticable it is recommended to test
     first. Backups are encouraged.
     """)
-    parser = argparse.ArgumentParser(description=scriptDescription)
+    parser = argparse.ArgumentParser(description=scriptDescription, allow_abbrev=False)
 
     parser.add_argument("--errors", "-e", action="store_true", help="list errors")
-    parser.add_argument("--focus", "-f", action="append", help="immediately begin conversion on target directory")
-    parser.add_argument("--list", "-l", action="store_true", help="list tracked paths")
+    parser.add_argument("--focus", "-f", action="append", metavar="PATH", help="immediately begin conversion on target directory")
+    parser.add_argument("--list-paths", "-lp", action="store_true", help="list tracked paths")
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
-    parser.add_argument("--number", "-n", action="store", help="limit number of files to be converted", type=int)
-    parser.add_argument("--path", "-p", action="append", help="add a new path to be tracked")
+    parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
+    parser.add_argument("--track", "-t", action="append", metavar="PATH", help="add a new path to be tracked")
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
 
     args = parser.parse_args()
@@ -497,11 +497,11 @@ def main():
         library.showFailed()
         sys.exit()
 
-    if args.list:
+    if args.list_paths:
         print(library.listPaths())
         sys.exit()
 
-    if args.path:
+    if args.track:
         for path in args.path:
             library.addNewPath(os.path.abspath(path))
 
@@ -514,6 +514,9 @@ def main():
             convertFilepaths = library.returnDirectory(dir)
     elif args.number:
         convertFilepaths = library.returnLibraryEntries(args.number)
+    else:
+        parser.print_help()
+        sys.exit()
 
     failedFilepaths = []
     spaceSaved = 0
