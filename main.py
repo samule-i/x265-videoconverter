@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import getopt
+import argparse
 import glob
 import json
 import logging
@@ -469,69 +469,54 @@ class X265Encoder:
 
 
 def main():
+    scriptDescription = ("""
+    A database focused media conversion utility that converts video files to
+    the HEVC video codec with a focus on reducing disk usage in media libraries.
+    This script attempts to be as safe as possible, however encoding to HEVC is
+    a lossy operation. though it should be unnoticable it is recommended to test
+    first. Backups are encouraged.
+    """)
+    parser = argparse.ArgumentParser(description=scriptDescription, allow_abbrev=False)
+
+    parser.add_argument("--errors", "-e", action="store_true", help="list errors")
+    parser.add_argument("--focus", "-f", action="append", metavar="PATH", help="immediately begin conversion on target directory")
+    parser.add_argument("--list-paths", "-lp", action="store_true", help="list tracked paths")
+    parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
+    parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
+    parser.add_argument("--track", "-t", action="append", metavar="PATH", help="add a new path to be tracked")
+    parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
+
+    args = parser.parse_args()
+
     scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
     logging.basicConfig(filename=scriptdir + "/log.txt", level=logging.DEBUG)
     logging.info("_" * 80)
-    low_profile = False
-
     library = MediaLibrary()
 
-    try:
-        opts, args = getopt.getopt(
-            sys.argv[1:],
-            "hn:p:sle",
-            ["number=", "path=", "scan=", "listpaths=", "focus-directory=", "low-profile"],
-        )
-    except getopt.GetoptError as err:
-        print(str(err))
-        sys.exit(2)
+    if args.errors:
+        library.showFailed()
+        sys.exit()
 
-    helpString = """
-    A file conversion utility that will attempt to convert files in media directories to HEVC content with the priority of saving disk space.
-    HEVC is known for having much smaller file sizes than h264 and much smaller than older codecs such as AVC.
-    Some devices can not play HEVC as it is a reasonably new codec, so make sure your player can handle HEVC before converting a library.
+    if args.list_paths:
+        print(library.listPaths())
+        sys.exit()
 
-    It should be reasonably safe to use ctrl+c to cancel during a conversion, the script manages to abort the conversion and restore a backup/
-    I recommend maintaing your own backups.
+    if args.track:
+        for path in args.path:
+            library.addNewPath(os.path.abspath(path))
 
-    usage:
-        -p "Add a new path to track"
-        -n "Number of files to attempt to convert"
-        -s "Scan tracked paths for new media"
-        -l "List tracked paths"
-        -e "List errors occurred"
-        --focus-directory "Start converting files in directory immediately"
-        --low-profile "Convert into 4-bit or 'Main' profile HEVC codec, for weaker devices"
-    """
-    for opt, arg in opts:
-        if opt == "--low-profile":
-            low_profile = True
-            logging.info(
-                "working in low profile mode for compatability with weaker hardware"
-            )
+    if args.scan:
+        for fp in library.listPaths():
+            library.scan(fp)
 
-    for opt, arg in opts:
-        if opt == "-h":
-            print(helpString)
-            sys.exit()
-        elif opt in ("-n", "--number"):
-            convertFilepaths = library.returnLibraryEntries(int(arg))
-        elif opt in ("--focus_directory"):
-            print(f"Focusing {arg}")
-            convertFilepaths = library.returnDirectory(arg)
-        elif opt in ("-p", "--path"):
-            library.addNewPath(os.path.abspath(arg))
-            sys.exit()
-        elif opt in ("-s", "--scan"):
-            for fp in library.listPaths():
-                library.scan(fp)
-            sys.exit()
-        elif opt in ("-l", "--listpaths"):
-            print(library.library["paths"])
-            sys.exit()
-        elif opt in ("-e"):
-            library.showFailed()
-            sys.exit()
+    if args.focus:
+        for dir in args.focus:
+            convertFilepaths = library.returnDirectory(dir)
+    elif args.number:
+        convertFilepaths = library.returnLibraryEntries(args.number)
+    else:
+        parser.print_help()
+        sys.exit()
 
     failedFilepaths = []
     spaceSaved = 0
@@ -544,19 +529,19 @@ def main():
 
         # check json db if encoded before running encoder
         try:
-            if libraryEntry["video_codec"] == "hevc" and low_profile is False:
+            if libraryEntry["video_codec"] == "hevc" and args.low_profile is False:
                 continue
             elif (
                 libraryEntry["video_codec"] == "hevc"
                 and libraryEntry["video_profile"] == "Main"
-                and low_profile is True
+                and args.low_profile is True
             ):
                 continue
         except KeyError:
             continue
 
         encoder = X265Encoder(filepath)
-        if low_profile is True:
+        if args.low_profile is True:
             encoder.low_profile = True
         encodeResult = encoder.encode()
 
