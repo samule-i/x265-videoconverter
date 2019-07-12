@@ -502,7 +502,7 @@ def main():
         sys.exit()
 
     if args.track:
-        for path in args.path:
+        for path in args.track:
             library.addNewPath(os.path.abspath(path))
 
     if args.scan:
