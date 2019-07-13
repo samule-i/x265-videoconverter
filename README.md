@@ -1,13 +1,26 @@
 # x265-converter
-A python3 script to track and convert media to HEVC format
+A database focused media conversion utility that converts video files to the
+HEVC video codec with a focus on reducing disk usage in media libraries. This
+script attempts to be as safe as possible, however encoding to HEVC is a lossy
+operation. though it should be unnoticable it is recommended to test first.
+Backups are encouraged.
 
 # example usage:
 
-`main.py -p /path/to/media` adds a new path for scanning  
-`main.py -s` scans and adds to db  
-`main.py -n 10` converts 10 files to x265  
-`main.py -e` shows errors that have occurred  
-`main.py -l` lists tracked directories  
-`main.py --focus-directory /path/to/media` converts a directory now if you don't want to wait until it's gotten there in the queue  
-`main.py -n 4 --focus-directory /path/to/media` should behave as expected.  
-`main.py --low-profile -n 10` should convert things using the ffmpeg 'yuv420p' profile, this will also down-convert x265 video in the library though.
+    main.py [-h] [--errors] [--focus PATH] [--list-paths] [--low-profile]
+                   [--number NUMBER] [--track PATH] [--scan]
+                   
+    optional arguments:
+      -h, --help            show this help message and exit
+      --errors, -e          list errors
+      --focus PATH, -f PATH
+                            immediately begin conversion on target directory
+      --list-paths, -lp     list tracked paths
+      --low-profile         for weaker devices, convert to 4-bit HEVC including
+                            downgrading 10-bit hevc
+      --number NUMBER, -n NUMBER
+                            transcode from tracked paths limit number of files to
+                            be converted
+      --track PATH, -t PATH
+                            add a new path to be tracked
+      --scan, -s            scan tracked directories for new files
