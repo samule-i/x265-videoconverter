@@ -82,6 +82,7 @@ class VideoInformation:
 
 class MediaLibrary:
     def __init__(self):
+        self.log = setup_logging()
         self.libraryFilePath = (
             os.path.abspath(os.path.dirname(sys.argv[0])) + "/library.json"
         )
@@ -279,6 +280,7 @@ class X265Encoder:
         self.backupFilepath = self.filepath + ".bk"
         self.outputFilepath = self.filepathBase + ".mkv"
         self.low_profile = False
+        self.log = setup_logging()
 
     def _backup(self):
         if os.path.isfile(self.backupFilepath):
@@ -306,7 +308,7 @@ class X265Encoder:
             self._restore()
 
         if not os.path.exists(self.filepath):
-            logging.error(f" skipping: {self.filepath} not found")
+            self.log.error(f" skipping: {self.filepath} not found")
             return False
         return True
 
@@ -468,6 +470,28 @@ class X265Encoder:
             return "failed"
 
 
+def setup_logging(loggingDirectory, logginglevel):
+    """Initialise the logger and stdout"""
+    # set root
+    rootLogger = logging.getLogger()
+    format = '%(asctime)s %(name)s.%(funcName)s +%(lineno)s: %(levelname)-8s [%(process)d] %(message)s'
+    dateFormat = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter(format, dateFormat)
+    rootLogger.setLevel(logginglevel)
+    # logger set level
+    logger = logging.getLogger(__name__)
+    # file
+    logFile = os.path.join(loggingDirectory, '265encoder.log')
+    fileHandler = logging.FileHandler(logFile)
+    fileHandler.setFormatter(formatter)
+    logger.addHandler(fileHandler)
+    # console
+    consoleHandler = logging.StreamHandler()
+    consoleHandler.setFormatter(formatter)
+    logger.addHandler(consoleHandler)
+    return logger
+
+
 def main():
     scriptDescription = ("""
     A database focused media conversion utility that converts video files to
@@ -485,12 +509,24 @@ def main():
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
     parser.add_argument("--track", "-t", action="append", metavar="PATH", help="add a new path to be tracked")
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
+    parser.add_argument("--quiet", "-q", action="store_true", help="only produce minimal output")
+    parser.add_argument("--verbose", "-v", action="store_true", help="produce as much output as possible")
 
     args = parser.parse_args()
 
-    scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    logging.basicConfig(filename=scriptdir + "/log.txt", level=logging.DEBUG)
-    logging.info("_" * 80)
+    scriptDirectory = os.path.dirname(os.path.abspath(sys.argv[0]))
+    logDirectory = os.path.join(scriptDirectory, 'logs')
+
+    if not os.path.exists(logDirectory):
+        os.makedirs(logDirectory)
+
+    if args.verbose:
+        log = setup_logging(logDirectory, logging.DEBUG)
+    elif args.quiet:
+        log = setup_logging(logDirectory, logging.CRITICAL)
+    else:
+        log = setup_logging(logDirectory, logging.INFO)
+
     library = MediaLibrary()
 
     if args.errors:
@@ -515,7 +551,6 @@ def main():
     elif args.number:
         convertFilepaths = library.returnLibraryEntries(args.number)
     else:
-        parser.print_help()
         sys.exit()
 
     failedFilepaths = []
@@ -551,7 +586,7 @@ def main():
                 os.path.splitext(filepath)[0] + ".mkv"
             ]["space_saved"]
             spaceSaved += fileSpaceSaved
-            logging.info(f"space saved {fileSpaceSaved/1_000_000}")
+            log.info(f"space saved {fileSpaceSaved/1_000_000}")
         elif encodeResult == "already encoded":
             library.markComplete(filepath)
         else:
@@ -560,11 +595,11 @@ def main():
             library.markFailed(filepath, errorMessage)
 
     if len(failedFilepaths) > 0:
-        print(" Some files failed, recommended manual conversion")
+        log.warning(" Some files failed, recommended manual conversion")
         for filename in failedFilepaths:
-            print(f" failed: {filename}")
-    logging.info(" completed")
-    logging.info(f"space saved this run: {int(spaceSaved/1_000_000)}mb")
+            log.warning(f" failed: {filename}")
+    log.info(" completed")
+    log.info(f"space saved this run: {int(spaceSaved/1_000_000)}mb")
 
 
 if __name__ == "__main__":
