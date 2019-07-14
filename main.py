@@ -13,6 +13,7 @@ class VideoInformation:
     def __init__(self, fp):
         self.filepath = fp
         self.low_profile = False
+        self.log = setup_logging()
 
     def analyze(self):
         self.command = [
@@ -28,9 +29,7 @@ class VideoInformation:
         try:
             self.ffprobe = json.loads(subprocess.check_output(self.command))
         except subprocess.CalledProcessError as error:
-            logging.error(error)
-            print("Error running ffprobe")
-            print(f'command {" ".join(self.command)}')
+            self.log.error(f'{error}\ncommand {" ".join(self.command)}')
             return False
 
         self.streams = self.ffprobe["streams"]
@@ -69,7 +68,7 @@ class VideoInformation:
         try:
             self.entry["video_codec"] = self.videoStreams[0]["codec_name"]
         except IndexError:
-            print("No video streams")
+            self.log.error("No video streams")
             return False
         if self.entry["video_codec"] == "hevc":
             self.entry["video_profile"] = self.videoStreams[0]["profile"]
@@ -82,6 +81,7 @@ class VideoInformation:
 
 class MediaLibrary:
     def __init__(self):
+        self.log = setup_logging()
         self.libraryFilePath = (
             os.path.abspath(os.path.dirname(sys.argv[0])) + "/library.json"
         )
@@ -101,7 +101,7 @@ class MediaLibrary:
         ]
 
         if not os.path.isfile(self.libraryFilePath):
-            logging.info(f" No medialibrary found, creating new library")
+            self.log.info(f" No medialibrary found, creating new library")
             self.library = {}
             self.library["paths"] = []
             self.library["incomplete_files"] = {}
@@ -116,7 +116,7 @@ class MediaLibrary:
     def scan(self, path):
         """Searching through files in path that are not in database.
            ffprobe them and add metadata to database."""
-        logging.info(f" MediaLibrary scanning {path}")
+        self.log.info(f" MediaLibrary scanning {path}")
         for root, dir, files in os.walk(path):
             for name in files:
                 if str.lower(os.path.splitext(name)[1]) not in self.videoFileTypes:
@@ -139,7 +139,7 @@ class MediaLibrary:
                 self.analyzeResult = self.info.analyze()
                 if self.analyzeResult is False:
                     error = f"VideoInformation failed reading {self.filepath}"
-                    logging.info(error)
+                    self.log.info(error)
                     failedEntry = {}
                     failedEntry["filepath"] = self.filepath
                     failedEntry["errorMessage"] = error
@@ -159,11 +159,11 @@ class MediaLibrary:
                 else:
                     self.library["incomplete_files"][self.filepath] = self.entry
         self._libraryCommit()
-        print("Scan completed")
+        self.log.info("Scan completed")
 
     def markComplete(self, filepath):
         """Move entry from incomplete_files to complete_files."""
-        logging.info(f" Completed transcoding {filepath}")
+        self.log.info(f"Completed transcoding {filepath}")
         self.filepath = filepath
         self.newFilepath = os.path.splitext(self.filepath)[0] + ".mkv"
         self.newEntry = self.library["incomplete_files"].pop(filepath)
@@ -171,7 +171,7 @@ class MediaLibrary:
         try:
             self.newSize = os.path.getsize(self.newFilepath)
         except FileNotFoundError:
-            print("File not found, assuming filename character encoding error")
+            self.log.error("File not found, assuming filename character encoding error")
             self.newSize = self.newEntry["file_size"]
 
         self.spaceSaved = int(self.newEntry["file_size"]) - int(self.newSize)
@@ -197,7 +197,7 @@ class MediaLibrary:
         entry["error_message"] = str(errorMessage)
         self.library["failed_files"][filepath] = entry
         self._libraryCommit()
-        logging.error(f" {filepath} failed to convert, moving to failed_files")
+        self.log.error(f"{filepath} failed to convert, moving to failed_files")
 
     def showFailed(self):
         """print failed_files dictionary to stdout."""
@@ -214,11 +214,10 @@ class MediaLibrary:
         """Create a new path entry in library."""
         self.mediaDirectory = os.path.abspath(filepath)
         if not os.path.isdir(filepath):
-            print("not valid directory")
-            logging.error(f" invalid directory {filepath}")
+            self.log.error(f"invalid directory {filepath}")
             sys.exit(2)
         if self.mediaDirectory not in self.library["paths"]:
-            logging.info(f" Adding new scan path {self.mediaDirectory}")
+            self.log.info(f" Adding new scan path {self.mediaDirectory}")
             self.library["paths"].append(self.mediaDirectory)
         self._libraryCommit()
 
@@ -234,10 +233,10 @@ class MediaLibrary:
             try:
                 self.entryList.append(next(self.dictionaryIterator))
             except StopIteration:
-                logging.warning(" reached end of database")
+                self.log.warning("reached end of database")
                 break
         if len(self.entryList) == 0:
-            logging.error(" media conversion completed, scan may add new media")
+            self.log.error("media conversion completed, scan may add new media")
             sys.exit(100)
         return self.entryList
 
@@ -254,15 +253,15 @@ class MediaLibrary:
             if os.path.splitext(fp)[1] not in self.videoFileTypes:
                 continue
             if fp in self.library["complete_files"]:
-                print(f"{fp} already completed")
+                self.log.debug(f"{fp} already completed")
                 continue
             if fp in self.library["failed_files"]:
-                print(f"{fp} has already failed conversion")
+                self.log.debug(f"{fp} has already failed conversion")
                 continue
             try:
                 self.entryList.append(fp)
             except KeyError as errorMessage:
-                logging.error(errorMessage)
+                self.log.error(errorMessage)
                 print(errorMessage)
                 continue
         return self.entryList
@@ -279,6 +278,7 @@ class X265Encoder:
         self.backupFilepath = self.filepath + ".bk"
         self.outputFilepath = self.filepathBase + ".mkv"
         self.low_profile = False
+        self.log = setup_logging()
 
     def _backup(self):
         if os.path.isfile(self.backupFilepath):
@@ -306,7 +306,7 @@ class X265Encoder:
             self._restore()
 
         if not os.path.exists(self.filepath):
-            logging.error(f" skipping: {self.filepath} not found")
+            self.log.error(f"skipping: {self.filepath} not found")
             return False
         return True
 
@@ -411,7 +411,6 @@ class X265Encoder:
     def encode(self):
 
         if not self._checkValid():
-            print("invalid file")
             return "invalid file"
 
         self.file = VideoInformation(self.filepath)
@@ -422,7 +421,7 @@ class X265Encoder:
         if self.file.isEncoded():
             alreadyX265 = (f'{self.filepath} already encoded,'
                            'moved to completed without doing anything')
-            logging.error(alreadyX265)
+            self.log.error(alreadyX265)
             return "already encoded"
 
         self._backup()
@@ -443,7 +442,7 @@ class X265Encoder:
         if not self._mapImages():
             imageStreamError = (f'filepath had an imageStream'
                                 'ignoring file')
-            logging.error(imageStreamError)
+            self.log.error(imageStreamError)
             self._restore()
             return "failed"
 
@@ -453,8 +452,8 @@ class X265Encoder:
         try:
             self.result = subprocess.call(self.command)
         except KeyboardInterrupt:
-            print("cleaning up")
-            logging.error(" Keyboard interrupt")
+            self.log.info("cleaning up")
+            self.log.error("Keyboard interrupt")
             self._restore()
             sys.exit()
         if self.result == 0:
@@ -463,9 +462,38 @@ class X265Encoder:
         else:
             ffmpegError = (f"failed encoding {self.filepath},"
                            "restoring original file")
-            logging.error(ffmpegError)
+            self.log.error(ffmpegError)
             self._restore()
             return "failed"
+
+
+def setup_logging(logDirectory=None, loggingLevel=None):
+    """Initialise the logger and stdout"""
+    # set root
+    rootLogger = logging.getLogger()
+    format = '%(asctime)s %(name)s.%(funcName)s +%(lineno)s: %(levelname)-8s [%(process)d] %(message)s'
+    dateFormat = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter(format, dateFormat)
+    if loggingLevel is not None:
+        rootLogger.setLevel(loggingLevel)
+    # logger set level
+    logger = logging.getLogger(__name__)
+    # file
+    if logDirectory is None:
+        scriptDirectory = os.path.dirname(os.path.abspath(sys.argv[0]))
+        logDirectory = os.path.join(scriptDirectory, 'logs')
+    if not os.path.exists(logDirectory):
+        os.makedirs(logDirectory)
+    logFile = os.path.join(logDirectory, '265encoder.log')
+    if not len(logger.handlers):
+        fileHandler = logging.FileHandler(logFile)
+        fileHandler.setFormatter(formatter)
+        logger.addHandler(fileHandler)
+        # console
+        consoleHandler = logging.StreamHandler()
+        consoleHandler.setFormatter(formatter)
+        logger.addHandler(consoleHandler)
+    return logger
 
 
 def main():
@@ -485,12 +513,19 @@ def main():
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
     parser.add_argument("--track", "-t", action="append", metavar="PATH", help="add a new path to be tracked")
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
+    parser.add_argument("--quiet", "-q", action="store_true", help="only produce minimal output")
+    parser.add_argument("--verbose", "-v", action="store_true", help="produce as much output as possible")
 
     args = parser.parse_args()
 
-    scriptdir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    logging.basicConfig(filename=scriptdir + "/log.txt", level=logging.DEBUG)
-    logging.info("_" * 80)
+    logDirectory = None
+    if args.verbose:
+        log = setup_logging(logDirectory, logging.DEBUG)
+    elif args.quiet:
+        log = setup_logging(logDirectory, logging.CRITICAL)
+    else:
+        log = setup_logging(logDirectory, logging.INFO)
+
     library = MediaLibrary()
 
     if args.errors:
@@ -515,7 +550,6 @@ def main():
     elif args.number:
         convertFilepaths = library.returnLibraryEntries(args.number)
     else:
-        parser.print_help()
         sys.exit()
 
     failedFilepaths = []
@@ -551,7 +585,7 @@ def main():
                 os.path.splitext(filepath)[0] + ".mkv"
             ]["space_saved"]
             spaceSaved += fileSpaceSaved
-            logging.info(f"space saved {fileSpaceSaved/1_000_000}")
+            log.info(f"space saved {fileSpaceSaved/1_000_000}")
         elif encodeResult == "already encoded":
             library.markComplete(filepath)
         else:
@@ -560,11 +594,11 @@ def main():
             library.markFailed(filepath, errorMessage)
 
     if len(failedFilepaths) > 0:
-        print(" Some files failed, recommended manual conversion")
+        log.warning("Some files failed, recommended manual conversion")
         for filename in failedFilepaths:
-            print(f" failed: {filename}")
-    logging.info(" completed")
-    logging.info(f"space saved this run: {int(spaceSaved/1_000_000)}mb")
+            log.warning(f" failed: {filename}")
+    log.info("completed")
+    log.info(f"space saved this run: {int(spaceSaved/1_000_000)}mb")
 
 
 if __name__ == "__main__":
