@@ -564,14 +564,14 @@ def main():
         # check json db if encoded before running encoder
         try:
             if libraryEntry["video_codec"] == "hevc" and args.low_profile is False:
-                library.markComplete()
+                library.markComplete(filepath)
                 continue
             elif (
                 libraryEntry["video_codec"] == "hevc"
                 and libraryEntry["video_profile"] == "Main"
                 and args.low_profile is True
             ):
-                library.markComplete()
+                library.markComplete(filepath)
                 continue
         except KeyError:
             continue
