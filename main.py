@@ -249,7 +249,7 @@ class MediaLibrary:
         self.scan(directory)
         self.entryList = []
         for file in os.listdir(directory):
-            fp = directory + "\\" + file
+            fp = os.path.join(directory, file)
             if os.path.splitext(fp)[1] not in self.videoFileTypes:
                 continue
             if fp in self.library["complete_files"]:
@@ -564,12 +564,14 @@ def main():
         # check json db if encoded before running encoder
         try:
             if libraryEntry["video_codec"] == "hevc" and args.low_profile is False:
+                library.markComplete()
                 continue
             elif (
                 libraryEntry["video_codec"] == "hevc"
                 and libraryEntry["video_profile"] == "Main"
                 and args.low_profile is True
             ):
+                library.markComplete()
                 continue
         except KeyError:
             continue
