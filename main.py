@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import subprocess
+import time
 
 import sys
 
@@ -554,11 +555,13 @@ def main():
 
     failedFilepaths = []
     spaceSaved = 0
+    totalElapsedTime = 0
 
     # Can't be changes whilst iterating dicts
     for filepath in convertFilepaths:
 
         print(filepath)
+        beginTime = time.time()
         libraryEntry = library.library["incomplete_files"][filepath]
 
         # check json db if encoded before running encoder
@@ -587,7 +590,10 @@ def main():
                 os.path.splitext(filepath)[0] + ".mkv"
             ]["space_saved"]
             spaceSaved += fileSpaceSaved
-            log.info(f"space saved {fileSpaceSaved/1_000_000}")
+            elapsedTime = time.time() - beginTime
+            totalElapsedTime = totalElapsedTime + elapsedTime
+            elapsedTimeString = time.strftime("%H:%M:%S", time.localtime(elapsedTime))
+            log.info(f"space saved {fileSpaceSaved/1_000_000} : time taken {elapsedTimeString}.")
         elif encodeResult == "already encoded":
             library.markComplete(filepath)
         else:
@@ -599,7 +605,8 @@ def main():
         log.warning("Some files failed, recommended manual conversion")
         for filename in failedFilepaths:
             log.warning(f" failed: {filename}")
-    log.info("completed")
+    totalElapsedTimeString = time.strftime("%H:%M:%S", time.localtime(totalElapsedTime))
+    log.info(f"time taken {totalElapsedTimeString}")
     log.info(f"space saved this run: {int(spaceSaved/1_000_000)}mb")
 
 
