@@ -326,7 +326,11 @@ class X265Encoder:
             self.command += ["-map", f'0:{stream["index"]}']
         self.command += ["-c:v", "libx265"]
         if self.low_profile is True:
+            self.log.debug("Setting pixel format to 4-bit depth")
             self.command += ["-pix_fmt", "yuv420p"]
+        else:
+            self.log.debug("Setting pixel format to 10-bit depth")
+            self.command += ["-pix_fmt", "yuv420p10le"]
 
     def _mapAudioStreams(self):
         self.compatableAudioCodecs = [
