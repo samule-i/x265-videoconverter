@@ -5,6 +5,10 @@ script attempts to be as safe as possible, however encoding to HEVC is a lossy
 operation. though it should be unnoticable it is recommended to test first.
 Backups are encouraged.
 
+# requirements:
+x265-videoconverter needs ffmpeg, download from [ffmpeg](https://ffmpeg.org/download.html)
+The latest version is 4.1.4 when testing.
+
 # typical usage:
     main.py -t /path/to/media -s
     main.py -n 10
