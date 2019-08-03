@@ -9,6 +9,14 @@ Backups are encouraged.
     main.py -t /path/to/media -s
     main.py -n 10
 
+# comparison
+Original:
+![original](https://github.com/formcore/x265-videoconverter/blob/master/video_examples_output/x264%20to%20x265%20original.png?raw=true)
+
+Transcoded:
+![transcoded](https://github.com/formcore/x265-videoconverter/blob/master/video_examples_output/x264%20to%20x265%20output.png?raw=true)
+
+
 # example usage:
 
     main.py [-h] [--errors] [--focus PATH] [--list-paths] [--low-profile]
