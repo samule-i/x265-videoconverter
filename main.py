@@ -222,6 +222,24 @@ class MediaLibrary:
             self.library["paths"].append(self.mediaDirectory)
         self._libraryCommit()
 
+    def deletePath(self, pathIndex):
+        """Remove a path from the tracked paths"""
+        print("use ID from listpaths")
+        if type(pathIndex) is not int:
+            try:
+                index = int(pathIndex)
+            except ValueError:
+                print("pathIndex is not a valid number")
+        else:
+            index = pathIndex
+
+        if index > len(self.library["paths"]):
+            self.log.error("input greater than path")
+            return False
+
+        self.library["paths"].pop(index)
+        self._libraryCommit()
+
     def listPaths(self):
         """List tracked paths stored in library."""
         return self.library["paths"]
@@ -538,7 +556,9 @@ def main():
         sys.exit()
 
     if args.list_paths:
-        print(library.listPaths())
+        pathList = library.listPaths()
+        for id, value in enumerate(pathList):
+            print(f"    {id} : {value}")
         sys.exit()
 
     if args.track:
