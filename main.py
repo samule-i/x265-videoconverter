@@ -267,6 +267,9 @@ class MediaLibrary:
                 continue
         return self.entryList
 
+    def returnTotalSaved(self):
+        return self.library["space_saved"]
+
     def _libraryCommit(self):
         with open(self.libraryFilePath, "w") as jsonFile:
             json.dump(self.library, jsonFile)
@@ -517,6 +520,7 @@ def main():
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
     parser.add_argument("--track", "-t", action="append", metavar="PATH", help="add a new path to be tracked")
+    parser.add_argument("--saved-space", action="store_true", help="display HDD space saved by transcoding into x265")
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
     parser.add_argument("--quiet", "-q", action="store_true", help="only produce minimal output")
     parser.add_argument("--verbose", "-v", action="store_true", help="produce as much output as possible")
@@ -544,6 +548,18 @@ def main():
     if args.track:
         for path in args.track:
             library.addNewPath(os.path.abspath(path))
+
+    if args.saved_space:
+        totalSavedMB = int(library.returnTotalSaved() / 1_000_000)
+        totalSavedGB = (totalSavedMB / 1_000)
+        totalSavedTB = (totalSavedGB / 1_000)
+        if totalSavedTB > 1:
+            print(f"{totalSavedTB}tb")
+        elif totalSavedGB > 1:
+            print(f"{totalSavedGB}gb")
+        else:
+            print(f"{totalSavedMB}mb")
+        sys.exit()
 
     if args.scan:
         for fp in library.listPaths():
