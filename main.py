@@ -317,6 +317,8 @@ class X265Encoder:
     def _validateNewFile(self, filepath):
         """ Perform some checks on output file to check whether the transcode worked
             returns False if there is a problem, true otherwise"""
+        if not os.path.isfile(filepath):
+            return False
         if os.path.getsize(filepath) == 0:
             return False
         return True
