@@ -314,6 +314,15 @@ class X265Encoder:
             return False
         return True
 
+    def _validateNewFile(self, filepath):
+        """ Perform some checks on output file to check whether the transcode worked
+            returns False if there is a problem, true otherwise"""
+        if not os.path.isfile(filepath):
+            return False
+        if os.path.getsize(filepath) == 0:
+            return False
+        return True
+
     def _subtitlePaths(self):
         self.subtitleExtensions = [".ass", ".ssa", ".sub", ".srt"]
         self.subtitleFiles = []
@@ -464,7 +473,7 @@ class X265Encoder:
             self.log.error("Keyboard interrupt")
             self._restore()
             sys.exit()
-        if self.result == 0:
+        if self.result == 0 and self._validateNewFile(self.filepath):
             os.remove(self.backupFilepath)
             return "success"
         else:
