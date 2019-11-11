@@ -81,11 +81,9 @@ class VideoInformation:
 
 
 class MediaLibrary:
-    def __init__(self):
+    def __init__(self, databasePath):
         self.log = setup_logging()
-        self.libraryFilePath = (
-            os.path.abspath(os.path.dirname(sys.argv[0])) + "/library.json"
-        )
+        self.libraryFilePath = (os.path.abspath(databasePath))
         self.videoFileTypes = [
             ".3gp",
             ".avi",
@@ -100,7 +98,8 @@ class MediaLibrary:
             ".webm",
             ".wmv",
         ]
-
+        if not os.path.exists(os.path.dirname(self.libraryFilePath)):
+            os.makedirs(os.path.dirname(self.libraryFilePath), exist_ok=True)
         if not os.path.isfile(self.libraryFilePath):
             self.log.info(f" No medialibrary found, creating new library")
             self.library = {}
@@ -524,6 +523,7 @@ def main():
     parser = argparse.ArgumentParser(description=scriptDescription, allow_abbrev=False)
 
     parser.add_argument("--errors", "-e", action="store_true", help="list errors")
+    parser.add_argument("--database", action="store", help="name of database to be used")
     parser.add_argument("--focus", "-f", action="append", metavar="PATH", help="immediately begin conversion on target directory")
     parser.add_argument("--list-paths", "-lp", action="store_true", help="list tracked paths")
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
@@ -544,7 +544,13 @@ def main():
     else:
         log = setup_logging(logDirectory, logging.INFO)
 
-    library = MediaLibrary()
+    databaseDir = os.path.abspath(os.path.dirname(sys.argv[0])) + "/database"
+    if args.database:
+        databasePath = databaseDir + "/" + args.database + ".json"
+    else:
+        databasePath = databaseDir + "/library.json"
+
+    library = MediaLibrary(databasePath)
 
     if args.errors:
         library.showFailed()
