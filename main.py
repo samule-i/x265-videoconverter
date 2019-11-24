@@ -316,7 +316,7 @@ class X265Encoder:
     def _validateNewFile(self, filepath):
         """ Perform some checks on output file to check whether the transcode worked
             returns False if there is a problem, true otherwise"""
-        if not os.path.isfile(filepath):
+        if not os.path.exists(filepath):
             return False
         if os.path.getsize(filepath) == 0:
             return False
@@ -472,15 +472,20 @@ class X265Encoder:
             self.log.error("Keyboard interrupt")
             self._restore()
             sys.exit()
-        if self.result == 0 and self._validateNewFile(self.filepath):
-            os.remove(self.backupFilepath)
-            return "success"
-        else:
-            ffmpegError = (f"failed encoding {self.filepath},"
-                           "restoring original file")
+
+        if self.result != 0:
+            ffmpegError = (f"failed encoding {self.filepath}, FFMPEG error {self.result}")
+            self.log.error(ffmpegError)
+            self._restore()
+            return ffmpegError
+        elif not self._validateNewFile(self.outputFilepath):
+            ffmpegError = (f"failed {self.outputFilepath}, validateNewFile failed")
             self.log.error(ffmpegError)
             self._restore()
             return "failed"
+        else:
+            os.remove(self.backupFilepath)
+            return "success"
 
 
 def setup_logging(logDirectory=None, loggingLevel=None):
