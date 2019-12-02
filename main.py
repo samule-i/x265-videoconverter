@@ -275,7 +275,7 @@ class MediaLibrary:
             json.dump(self.library, jsonFile)
 
 
-     class X265Encoder:
+class X265Encoder:
     def __init__(self, filepath):
         self.filepath = filepath
         self.filepathBase = os.path.splitext(self.filepath)[0]
