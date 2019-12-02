@@ -274,7 +274,7 @@ class MediaLibrary:
             json.dump(self.library, jsonFile)
 
 
-class X265Encoder:
+     class X265Encoder:
     def __init__(self, filepath):
         self.filepath = filepath
         self.filepathBase = os.path.splitext(self.filepath)[0]
@@ -368,6 +368,7 @@ class X265Encoder:
         self.compatableSubtitleCodecs = [
             "ass",
             "dvd_subtitle",
+            "hdmv_pgs_subtitle",
             "sami",
             "srt",
             "ssa",
