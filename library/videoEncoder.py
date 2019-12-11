@@ -40,7 +40,12 @@ class X265Encoder:
         else:
             self.compatableContainer = False
             self.outputFilepath = self.filepathBase + ".mkv"
+
         self.low_profile = False
+        self.nvenc = False
+        self.crf = 28
+        self.preset = "medium"
+
         self.log = logger.setup_logging()
 
     def _backup(self):
@@ -77,6 +82,9 @@ class X265Encoder:
         self._mapAttachments()
         self._mapImages()
 
+        self.command += ["-crf", str(self.crf)]
+        self.command += ["-preset", self.preset]
+
         self.command += [self.outputFilepath]
         return self.command
 
@@ -86,6 +94,7 @@ class X265Encoder:
             "ac3",
             "dts",
             "dts-hd",
+            "eac3",
             "lpcm",
             "mlp",
             "mp3",
@@ -168,13 +177,27 @@ class X265Encoder:
     def _mapVideoStreams(self):
         for stream in self.file.videoStreams:
             self.command += ["-map", f'0:{stream["index"]}']
-        self.command += ["-c:v", "libx265"]
-        if self.low_profile is True:
-            self.log.debug("Setting pixel format to 4-bit depth")
-            self.command += ["-pix_fmt", "yuv420p"]
+        if self.nvenc:
+            self.log.debug("GPU encoding used")
+            self.command += ["-c:v", "hevc_nvenc"]
+            if self.low_profile:
+                self.command += ["-pix_fmt", "yuv420p"]
+            else:
+                self.command += ["-pix_fmt", "p010le"]
         else:
-            self.log.debug("Setting pixel format to 10-bit depth")
-            self.command += ["-pix_fmt", "yuv420p10le"]
+            self.log.debug("CPU encoding used")
+            self.command += ["-c:v", "libx265"]
+            if self.low_profile:
+                self.command += ["-pix_fmt", "yuv420p"]
+            else:
+                self.command += ["-pix_fmt", "yuv420p10le"]
+
+        if self.low_profile:
+            self.log.debug("Main profile used")
+            self.command += ["-profile:v", "main"]
+        else:
+            self.log.debug("Main10 profile used")
+            self.command += ["-profile:v", "main10"]
 
     def _restore(self):
         if os.path.exists(self.backupFilepath):
