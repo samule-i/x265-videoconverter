@@ -44,6 +44,7 @@ class X265Encoder:
         self.low_profile = False
         self.nvenc = False
         self.crf = 28
+        self.preset = "medium"
 
         self.log = logger.setup_logging()
 
@@ -82,6 +83,7 @@ class X265Encoder:
         self._mapImages()
 
         self.command += ["-crf", str(self.crf)]
+        self.command += ["-preset", self.preset]
 
         self.command += [self.outputFilepath]
         return self.command
@@ -92,6 +94,7 @@ class X265Encoder:
             "ac3",
             "dts",
             "dts-hd",
+            "eac3",
             "lpcm",
             "mlp",
             "mp3",
