@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--list-paths", "-lp", action="store_true", help="list tracked paths")
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
+    parser.add_argument("--nvenc", action="store_true", help="transcode using NVENC compatable GPU")
     parser.add_argument("--track", "-t", action="append", metavar="PATH", help="add a new path to be tracked")
     parser.add_argument("--saved-space", action="store_true", help="display HDD space saved by transcoding into x265")
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
@@ -110,6 +111,8 @@ def main():
         encoder = videoEncoder.X265Encoder(filepath)
         if args.low_profile is True:
             encoder.low_profile = True
+        if args.nvenc is True:
+            encoder.nvenc = True
 
         try:
             encodeResult = encoder.encode()

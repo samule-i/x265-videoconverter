@@ -41,6 +41,7 @@ class X265Encoder:
             self.compatableContainer = False
             self.outputFilepath = self.filepathBase + ".mkv"
         self.low_profile = False
+        self.nvenc = False
         self.log = logger.setup_logging()
 
     def _backup(self):
@@ -168,13 +169,23 @@ class X265Encoder:
     def _mapVideoStreams(self):
         for stream in self.file.videoStreams:
             self.command += ["-map", f'0:{stream["index"]}']
-        self.command += ["-c:v", "libx265"]
-        if self.low_profile is True:
-            self.log.debug("Setting pixel format to 4-bit depth")
-            self.command += ["-pix_fmt", "yuv420p"]
+
+        if not self.nvenc:
+            self.log.debug("cpu encoding used")
+            self.command += ["-c:v", "libx265"]
+            if not self.low_profile:
+                self.log.debug("Setting pixel format to 10-bit depth")
+                self.command += ["-pix_fmt", "yuv420p10le"]
         else:
-            self.log.debug("Setting pixel format to 10-bit depth")
-            self.command += ["-pix_fmt", "yuv420p10le"]
+            self.log.debug("nvenc encoding used")
+            self.command += ["-c:v", "hevc_nvenc"]
+            if not self.low_profile:
+                self.log.debug("Setting pixel format to 10-bit depth")
+                self.command += ["-pix_fmt", "p0101e"]
+                
+        if self.low_profile:
+                self.log.debug("Setting pixel format to 4-bit depth")
+                self.command += ["-pix_fmt", "yuv420p"]
 
     def _restore(self):
         if os.path.exists(self.backupFilepath):
