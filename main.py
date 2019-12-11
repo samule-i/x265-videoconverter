@@ -20,6 +20,8 @@ def main():
     """)
     parser = argparse.ArgumentParser(description=scriptDescription, allow_abbrev=False)
 
+    parser.add_argument("--crf", action="store", metavar="int", type=int,
+        help="CRF paramater to be passed through to ffmpeg, determines quality and speed with lower values being slower but higher quality")
     parser.add_argument("--errors", "-e", action="store_true", help="list errors")
     parser.add_argument("--database", action="store", help="name of database to be used")
     parser.add_argument("--focus", "-f", action="append", metavar="PATH", help="immediately begin conversion on target directory")
@@ -109,10 +111,15 @@ def main():
             continue
 
         encoder = videoEncoder.X265Encoder(filepath)
-        if args.low_profile is True:
+        if args.low_profile:
             encoder.low_profile = True
-        if args.nvenc is True:
+        if args.nvenc:
             encoder.nvenc = True
+        if args.crf:
+            if 0 < args.crf < 51:
+                encoder.crf = args.crf
+            else:
+                raise ValueError("CRF value unacceptable, must be between 0 and 51")
 
         try:
             encodeResult = encoder.encode()
