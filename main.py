@@ -29,6 +29,9 @@ def main():
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
     parser.add_argument("--nvenc", action="store_true", help="transcode using NVENC compatable GPU")
+    parser.add_argument("--preset", action="store", type=str, 
+        help="string for ffmpeg paramater, accepts ultrafast, superfast, veryfast, faster, fast, medium, slow, slower,\
+             veryslow and placebo, slower speeds have a higher filesize and better quality")
     parser.add_argument("--track", "-t", action="append", metavar="PATH", help="add a new path to be tracked")
     parser.add_argument("--saved-space", action="store_true", help="display HDD space saved by transcoding into x265")
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
@@ -120,6 +123,19 @@ def main():
                 encoder.crf = args.crf
             else:
                 raise ValueError("CRF value unacceptable, must be between 0 and 51")
+        if args.preset:
+            validPresets = ["ultrafast", "superfast", "veryfast",
+                            "faster", "fast", "medium", "slow",
+                            "slower", "veryslow", "placebo"]
+            nvencPresets = ["fast", "medium", "slow"]
+            preset = args.preset.lower()
+            if preset in validPresets:
+                if args.nvenc and args.preset.lower() not in nvencPresets:
+                    log.error("invalid nvenc preset passed with nvenc selected")
+                    sys.exit()
+                encoder.preset = preset
+            else:
+                raise ValueError("preset not a valid argument, please use ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow or placebo")
 
         try:
             encodeResult = encoder.encode()
