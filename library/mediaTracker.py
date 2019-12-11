@@ -156,15 +156,15 @@ class MediaLibrary:
         self._libraryCommit()
         self.log.info("Scan completed")
 
-    def markComplete(self, filepath):
+    def markComplete(self, inputfp, outputfp=None):
         """Move entry from incomplete_files to complete_files."""
-        self.log.info(f"Completed transcoding {filepath}")
-        self.filepath = filepath
-        self.newFilepath = os.path.splitext(self.filepath)[0] + ".mkv"
-        self.newEntry = self.library["incomplete_files"].pop(filepath)
+        if outputfp is None:
+            outputfp = inputfp
+        self.log.info(f"Completed transcoding {outputfp}")
+        self.newEntry = self.library["incomplete_files"].pop(inputfp)
 
         try:
-            self.newSize = os.path.getsize(self.newFilepath)
+            self.newSize = os.path.getsize(outputfp)
         except FileNotFoundError:
             self.log.error("File not found, assuming filename character encoding error")
             self.newSize = self.newEntry["file_size"]
@@ -175,7 +175,7 @@ class MediaLibrary:
         self.newEntry["video_profile"] = "Main"
         self.newEntry["space_saved"] = self.spaceSaved
         self.newEntry["file_size"] = self.newSize
-        self.library["complete_files"][self.newFilepath] = self.newEntry
+        self.library["complete_files"][outputfp] = self.newEntry
         self.library["space_saved"] += self.spaceSaved
         self._libraryCommit()
 

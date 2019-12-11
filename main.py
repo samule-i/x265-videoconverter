@@ -99,14 +99,9 @@ def main():
 
         # check json db if encoded before running encoder
         try:
-            if libraryEntry["video_codec"] == "hevc" and args.low_profile is False:
-                library.markComplete(filepath)
-                continue
-            elif (
-                libraryEntry["video_codec"] == "hevc"
-                and libraryEntry["video_profile"] == "Main"
-                and args.low_profile is True
-            ):
+            matchLow = args.low_profile and libraryEntry["video_profile"] == "Main"
+            matchHigh = not args.low_profile
+            if libraryEntry["video_codec"] == "hevc" and (matchLow or matchHigh):
                 library.markComplete(filepath)
                 continue
         except KeyError:
@@ -115,24 +110,25 @@ def main():
         encoder = videoEncoder.X265Encoder(filepath)
         if args.low_profile is True:
             encoder.low_profile = True
-        encodeResult = encoder.encode()
 
-        if encodeResult == "success":
+        try:
+            encodeResult = encoder.encode()
+        except videoEncoder.AlreadyEncodedError:
             library.markComplete(filepath)
-            fileSpaceSaved = library.library["complete_files"][
-                os.path.splitext(filepath)[0] + ".mkv"
-            ]["space_saved"]
-            spaceSaved += fileSpaceSaved
-            elapsedTime = time.time() - beginTime
-            totalElapsedTime = totalElapsedTime + elapsedTime
-            elapsedTimeString = time.strftime("%H:%M:%S", time.localtime(elapsedTime))
-            log.info(f"space saved {fileSpaceSaved/1_000_000} : time taken {elapsedTimeString}.")
-        elif encodeResult == "already encoded":
-            library.markComplete(filepath)
-        else:
+            continue
+        except (videoEncoder.InvalidFileError, videoEncoder.EncoderFailedError) as e:
             failedFilepaths.append(filepath)
-            errorMessage = f"x265 convert failed with error: {encodeResult}"
+            errorMessage = f"x265 convert failed with error: {e}"
             library.markFailed(filepath, errorMessage)
+            continue
+
+        library.markComplete(filepath, encodeResult)
+        fileSpaceSaved = library.library["complete_files"][encodeResult]["space_saved"]
+        spaceSaved += fileSpaceSaved
+        elapsedTime = time.time() - beginTime
+        totalElapsedTime = totalElapsedTime + elapsedTime
+        elapsedTimeString = time.strftime("%H:%M:%S", time.localtime(elapsedTime))
+        log.info(f"space saved {fileSpaceSaved/1_000_000} : time taken {elapsedTimeString}.")
 
     if len(failedFilepaths) > 0:
         log.warning("Some files failed, recommended manual conversion")

@@ -10,10 +10,36 @@ from library import logger
 
 class X265Encoder:
     def __init__(self, filepath):
+
+        """
+        wiki states that these file formats are HEVC compatable
+        3gp, 3g2, asf, avi, mkv(beta), ps/ts, mp4, mxf(pending), qtff
+        However, as of ffmpeg 4.2.1 (current at 2019/12/10)
+        this failed to properly handle a .avi and resulted in a destroyed file
+        Testing will be needed before I add these as compatable containers.
+        https://en.wikipedia.org/wiki/Comparison_of_video_container_formats#Video_coding_formats_support
+        hevcContainers = [
+            ".3gp",".asf", ".wma", ".wmv",
+            ".avi", ".mkv", "mk3d", ".mka",
+            ".mks", ".mpg", ".mpeg", ".m2p",
+            ".ps", ".mp4", ".m4a", ".m4p",
+            ".m4b", ".m4r", ".m4v", "mxf",
+            ".mov", ".qt"]
+        """
+
+        hevcContainers = [
+            ".mkv", ".mp4"
+        ]
+
         self.filepath = filepath
-        self.filepathBase = os.path.splitext(self.filepath)[0]
-        self.backupFilepath = self.filepath + ".bk"
-        self.outputFilepath = self.filepathBase + ".mkv"
+        self.filepathBase, self.filepathExtension = os.path.splitext(self.filepath)
+        self.backupFilepath = self.filepathBase + "_backup" + self.filepathExtension
+        if self.filepathExtension.lower() in hevcContainers:
+            self.compatableContainer = True
+            self.outputFilepath = self.filepath
+        else:
+            self.compatableContainer = False
+            self.outputFilepath = self.filepathBase + ".mkv"
         self.low_profile = False
         self.log = logger.setup_logging()
 
@@ -49,12 +75,7 @@ class X265Encoder:
         self._mapAudioStreams()
         self._mapSubtitleStreams()
         self._mapAttachments()
-        if not self._mapImages():
-            imageStreamError = (f'filepath had an imageStream'
-                                'ignoring file')
-            self.log.error(imageStreamError)
-            self._restore()
-            return "failed"
+        self._mapImages()
 
         self.command += [self.outputFilepath]
         return self.command
@@ -74,7 +95,8 @@ class X265Encoder:
         self.streamCounter = 0
         for stream in self.file.audioStreams:
             self.command += ["-map", f'0:{stream["index"]}']
-            if stream["codec_name"] in self.compatableAudioCodecs:
+            compatableAudio = stream["codec_name"] in self.compatableAudioCodecs
+            if self.compatableContainer or compatableAudio:
                 self.command += [f"-c:a:{self.streamCounter}", "copy"]
             else:
                 self.command += [f"-c:a:{self.streamCounter}", "aac"]
@@ -92,12 +114,11 @@ class X265Encoder:
             ffmpeg example cover_art.mkv and
             several different commands to try to achieve an
             attached_pic disposition
-            return False and skip the file
+            Fixed in ffmpeg 4.2.1
         """
         # obo gives current stream number
         self.streamCounter = len(self.file.videoStreams)
         for stream in self.file.imageStreams:
-            return False
             self.command += ["-map", f'0:{stream["index"]}']
             self.command += [f"-c:v:{self.streamCounter}", "copy"]
             self.command += [f"-disposition:v:{self.streamCounter}", "attached_pic"]
@@ -121,7 +142,8 @@ class X265Encoder:
         self.streamCounter = 0
         for stream in self.file.subtitleStreams:
             self.command += ["-map", f'0:{stream["index"]}']
-            if stream["codec_name"] in self.compatableSubtitleCodecs:
+            compatableSubtitle = stream["codec_name"] in self.compatableSubtitleCodecs
+            if self.compatableContainer or compatableSubtitle:
                 self.command += [f"-c:s:{self.streamCounter}", "copy"]
             else:
                 self.command += [f"-c:s:{self.streamCounter}", "ass"]
@@ -136,7 +158,8 @@ class X265Encoder:
                     "-map",
                     f'{self.externalSubtitles.index(subtitle)+1}:{stream["index"]}',
                 ]
-                if stream["codec_name"] in self.compatableSubtitleCodecs:
+                compatableSub = stream["codec_name"] in self.compatableSubtitleCodecs
+                if self.compatableContainer or compatableSub:
                     self.command += [f"-c:s:{self.streamCounter}", "copy"]
                 else:
                     self.command += [f"-c:s:{self.streamCounter}", "srt"]
@@ -187,7 +210,7 @@ class X265Encoder:
     def encode(self):
 
         if not self._checkValid():
-            return "invalid file"
+            raise InvalidFileError
 
         self.file = mediaTracker.VideoInformation(self.filepath)
         if self.low_profile is True:
@@ -198,7 +221,7 @@ class X265Encoder:
             alreadyX265 = (f'{self.filepath} already encoded,'
                            'moved to completed without doing anything')
             self.log.error(alreadyX265)
-            return "already encoded"
+            raise AlreadyEncodedError
 
         self._backup()
 
@@ -216,12 +239,27 @@ class X265Encoder:
             ffmpegError = (f"failed encoding {self.filepath}, FFMPEG error {self.result}")
             self.log.error(ffmpegError)
             self._restore()
-            return ffmpegError
+            raise EncoderFailedError(ffmpegError)
         elif not self._validateNewFile(self.outputFilepath):
             ffmpegError = (f"failed {self.outputFilepath}, validateNewFile failed")
             self.log.error(ffmpegError)
             self._restore()
-            return "failed"
+            raise EncoderFailedError(ffmpegError)
         else:
             os.remove(self.backupFilepath)
-            return "success"
+            return self.outputFilepath
+
+    
+class Error(Exception):
+    pass
+
+class AlreadyEncodedError(Error):
+    pass
+
+class InvalidFileError(Error):
+    pass
+
+class EncoderFailedError(Error):
+    def __init__(self, arg):
+        self.strerror = arg
+        self.args =  {arg}
