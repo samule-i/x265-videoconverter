@@ -10,6 +10,7 @@ class VideoInformation:
     def __init__(self, fp):
         self.filepath = fp
         self.low_profile = False
+        self.resolution = False
         self.log = logger.setup_logging()
 
     def analyze(self):
@@ -55,6 +56,8 @@ class VideoInformation:
         for stream in self.videoStreams:
             if stream["codec_name"] != "hevc":
                 return False
+            elif self.resolution and stream["height"] != self.resolution:
+                return False
             elif stream["profile"] != "Main" and self.low_profile is True:
                 return False
             else:
@@ -73,10 +76,13 @@ class VideoInformation:
             self.entry["video_profile"] = ""
         self.entry["file_size"] = self.ffprobe["format"]["size"]
         self.entry["duration"] = int(float(self.ffprobe["format"]["duration"]))
+        self.entry["resolution"] = int(self.videoStreams[0]["height"])
         return self.entry
 
 class MediaLibrary:
     def __init__(self, databasePath):
+        self.low_profile = False
+        self.resolution = False
         self.log = logger.setup_logging()
         self.libraryFilePath = (os.path.abspath(databasePath))
         self.videoFileTypes = [
@@ -131,6 +137,8 @@ class MediaLibrary:
                 print(self.filepath)
 
                 self.info = VideoInformation(self.filepath)
+                self.info.low_profile = self.low_profile
+                self.info.resolution = self.resolution
                 self.analyzeResult = self.info.analyze()
                 if self.analyzeResult is False:
                     error = f"VideoInformation failed reading {self.filepath}"
@@ -147,9 +155,7 @@ class MediaLibrary:
                     continue
                 if self.info.isEncoded():
                     self.library["complete_files"][self.filepath] = self.entry
-                    self.library["complete_files"][self.filepath][
-                        "original_codec"
-                    ] = "hevc"
+                    self.library["complete_files"][self.filepath]["original_codec"] = "hevc"
                     self.library["complete_files"][self.filepath]["space_saved"] = 0
                 else:
                     self.library["incomplete_files"][self.filepath] = self.entry
