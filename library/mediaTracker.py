@@ -272,4 +272,4 @@ class MediaLibrary:
 
     def _libraryCommit(self):
         with open(self.libraryFilePath, "w") as jsonFile:
-            json.dump(self.library, jsonFile)
+            jsonFile.write(json.dumps(self.library,indent=2))
