@@ -64,6 +64,8 @@ class VideoInformation:
         self.entry = {}
         try:
             self.entry["video_codec"] = self.videoStreams[0]["codec_name"]
+            self.entry["height"] = self.videoStreams[0]["height"]
+            self.entry["width"] = self.videoStreams[0]["width"]
         except IndexError:
             self.log.error("No video streams")
             return False
@@ -92,6 +94,7 @@ class MediaLibrary:
             ".vob",
             ".webm",
             ".wmv",
+            ".m4v"
         ]
         if not os.path.exists(os.path.dirname(self.libraryFilePath)):
             os.makedirs(os.path.dirname(self.libraryFilePath), exist_ok=True)
@@ -99,6 +102,7 @@ class MediaLibrary:
             self.log.info(f" No medialibrary found, creating new library")
             self.library = {}
             self.library["paths"] = []
+            self.library["blacklist"] = []
             self.library["incomplete_files"] = {}
             self.library["complete_files"] = {}
             self.library["failed_files"] = {}
@@ -216,9 +220,24 @@ class MediaLibrary:
             self.library["paths"].append(self.mediaDirectory)
         self._libraryCommit()
 
+    def addBlacklistPath(self, filepath):
+        """Create a new blacklist path entry in library."""
+        self.mediaDirectory = os.path.abspath(filepath)
+        if not os.path.isdir(filepath):
+            self.log.error(f"invalid directory {filepath}")
+            sys.exit(2)
+        if self.mediaDirectory not in self.library["blacklist"]:
+            self.log.info(f" Adding new blacklist path {self.mediaDirectory}")
+            self.library["blacklist"].append(self.mediaDirectory)
+        self._libraryCommit()
+
     def listPaths(self):
         """List tracked paths stored in library."""
         return self.library["paths"]
+
+    def listBlacklistPaths(self):
+        """List blacklist paths stored in library."""
+        return self.library["blacklist"]
 
     def returnLibraryEntries(self, count):
         """Return a list of filepaths from the top of the database."""
@@ -266,4 +285,4 @@ class MediaLibrary:
 
     def _libraryCommit(self):
         with open(self.libraryFilePath, "w") as jsonFile:
-            json.dump(self.library, jsonFile)
+            jsonFile.write(json.dumps(self.library,indent=2))

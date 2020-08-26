@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--database", action="store", help="name of database to be used")
     parser.add_argument("--focus", "-f", action="append", metavar="PATH", help="immediately begin conversion on target directory")
     parser.add_argument("--list-paths", "-lp", action="store_true", help="list tracked paths")
+    parser.add_argument("--list-blacklist-paths", "-lp", action="store_true", help="list blacklisted paths")
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
     parser.add_argument("--nvenc", action="store_true", help="transcode using NVENC compatable GPU")
@@ -37,6 +38,9 @@ def main():
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
     parser.add_argument("--quiet", "-q", action="store_true", help="only produce minimal output")
     parser.add_argument("--verbose", "-v", action="store_true", help="produce as much output as possible")
+    parser.add_argument("--vbr", action="store", type=str, help="Set the variable bitrate for NVENC pass")
+    parser.add_argument("--minrate", action="store", type=str, help="Set the minimum bitrate for NVENC pass")
+    parser.add_argument("--maxrate", action="store", type=str, help="Set the maximum bitrate for NVENC pass")
 
     args = parser.parse_args()
 
@@ -62,6 +66,10 @@ def main():
 
     if args.list_paths:
         print(library.listPaths())
+        sys.exit()
+
+    if args.list_blacklist_paths:
+        print(library.listBlacklistPaths())
         sys.exit()
 
     if args.track:
@@ -131,11 +139,17 @@ def main():
             preset = args.preset.lower()
             if preset in validPresets:
                 if args.nvenc and args.preset.lower() not in nvencPresets:
-                    log.error("invalid nvenc preset passed with nvenc selected")
+                    log.error("invalid nvenc preset passed with nvenc selected, please use fast, medium, or slow")
                     sys.exit()
                 encoder.preset = preset
             else:
                 raise ValueError("preset not a valid argument, please use ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow or placebo")
+        if args.vbr:
+            encoder.vbr = args.vbr
+            if args.minrate:
+                encoder.minrate = args.minrate
+            if args.maxrate:
+                encoder.maxrate = args.maxrate
 
         try:
             encodeResult = encoder.encode()
