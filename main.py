@@ -38,6 +38,9 @@ def main():
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
     parser.add_argument("--quiet", "-q", action="store_true", help="only produce minimal output")
     parser.add_argument("--verbose", "-v", action="store_true", help="produce as much output as possible")
+    parser.add_argument("--vbr", action="store", type=str, help="Set the variable bitrate for NVENC pass")
+    parser.add_argument("--minrate", action="store", type=str, help="Set the minimum bitrate for NVENC pass")
+    parser.add_argument("--maxrate", action="store", type=str, help="Set the maximum bitrate for NVENC pass")
 
     args = parser.parse_args()
 
@@ -147,7 +150,13 @@ def main():
                 raise ValueError("preset not a valid argument, please use ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow or placebo")
         if args.resolution:
             encoder.resolution = args.resolution
-
+        if args.vbr:
+            encoder.vbr = args.vbr
+            if args.minrate:
+                encoder.minrate = args.minrate
+            if args.maxrate:
+                encoder.maxrate = args.maxrate
+            
         try:
             encodeResult = encoder.encode()
         except videoEncoder.AlreadyEncodedError:
