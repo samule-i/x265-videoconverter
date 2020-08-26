@@ -21,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser(description=scriptDescription, allow_abbrev=False)
 
     parser.add_argument("--crf", action="store", metavar="int", type=int,
-        help="CRF parameter to be passed through to ffmpeg, determines quality and speed with lower values being slower but higher quality")
+        help="CRF parameter to be passed through to ffmpeg, determines quality and speed with lower values being slower but higher quality (not for NVENC)")
     parser.add_argument("--errors", "-e", action="store_true", help="list errors")
     parser.add_argument("--database", action="store", help="name of database to be used")
     parser.add_argument("--focus", "-f", action="append", metavar="PATH", help="immediately begin conversion on target directory")
@@ -29,7 +29,7 @@ def main():
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
     parser.add_argument("--nvenc", action="store_true", help="transcode using NVENC compatible GPU")
-    parser.add_argument("--resolution", action="store", type=int, help="output resolution to be used for conversion")
+    parser.add_argument("--resolution", action="store", type=int, help="Height of the output resolution to be used for conversion")
     parser.add_argument("--preset", action="store", type=str,
         help="string for ffmpeg paramater, accepts ultrafast, superfast, veryfast, faster, fast, medium, slow, slower,\
              veryslow and placebo, slower speeds have a higher filesize and better quality")
@@ -38,6 +38,9 @@ def main():
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
     parser.add_argument("--quiet", "-q", action="store_true", help="only produce minimal output")
     parser.add_argument("--verbose", "-v", action="store_true", help="produce as much output as possible")
+    parser.add_argument("--vbr", action="store", type=str, help="Set the Variable Bitrate for the encoding pass, this will adjust NVENC quality")
+    parser.add_argument("--minrate", action="store", type=str, help="Set the minimum rate for Variable Bitrate mode")
+    parser.add_argument("--maxrate", action="store", type=str, help="Set the maximum rate for Variable Bitrate mode")
 
     args = parser.parse_args()
 
@@ -147,7 +150,13 @@ def main():
                 raise ValueError("preset not a valid argument, please use ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow or placebo")
         if args.resolution:
             encoder.resolution = args.resolution
-
+        if args.vbr:
+            encoder.vbr = args.vbr
+            if args.minrate:
+                encoder.minrate = args.minrate
+            if args.maxrate:
+                encoder.maxrate = args.maxrate
+            
         try:
             encodeResult = encoder.encode()
         except videoEncoder.AlreadyEncodedError:
