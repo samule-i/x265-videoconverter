@@ -4,6 +4,7 @@ import logging
 import sys
 import subprocess
 import os
+import time
 
 from library import mediaTracker
 from library import logger
@@ -46,6 +47,9 @@ class X265Encoder:
         self.resolution = False
         self.crf = 28
         self.preset = "medium"
+        self.vbr = False
+        self.minrate = False
+        self.maxrate = False
 
         self.log = logger.setup_logging()
 
@@ -77,14 +81,15 @@ class X265Encoder:
 
         self.command += ["-map_chapters", "0", "-map_metadata", "0"]
 
+        self.command += ["-crf", str(self.crf)]
+        self.command += ["-preset", self.preset]
+        self.command += ["-max_muxing_queue_size", str(1024)]
+        
         self._mapVideoStreams()
         self._mapAudioStreams()
         self._mapSubtitleStreams()
         self._mapAttachments()
         self._mapImages()
-
-        self.command += ["-crf", str(self.crf)]
-        self.command += ["-preset", self.preset]
 
         self.command += [self.outputFilepath]
         return self.command
@@ -193,6 +198,13 @@ class X265Encoder:
             else:
                 self.command += ["-pix_fmt", "yuv420p10le"]
 
+        if self.vbr:
+            self.command += ["-b:v", self.vbr]
+            if self.minrate:
+                self.command += ["-minrate", self.minrate]
+            if self.maxrate:
+                self.command += ["-maxrate", self.maxrate]
+
         if self.low_profile:
             self.log.debug("Main profile used")
             self.command += ["-profile:v", "main"]
@@ -276,6 +288,7 @@ class X265Encoder:
             self._restore()
             raise EncoderFailedError(ffmpegError)
         else:
+            time.sleep(2)
             os.remove(self.backupFilepath)
             return self.outputFilepath
 
