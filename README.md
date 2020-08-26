@@ -40,6 +40,7 @@ Transcoded:
     --number NUMBER, -n NUMBER
                             transcode from tracked paths limit number of files to be converted
     --nvenc               transcode using NVENC compatable GPU
+    --resolution
     --preset PRESET       string for ffmpeg paramater, accepts ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow and placebo, slower speeds have a higher filesize and better quality
     --track PATH, -t PATH
                             add a new path to be tracked

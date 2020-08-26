@@ -15,21 +15,22 @@ def main():
     A database focused media conversion utility that converts video files to
     the HEVC video codec with a focus on reducing disk usage in media libraries.
     This script attempts to be as safe as possible, however encoding to HEVC is
-    a lossy operation. though it should be unnoticable it is recommended to test
+    a lossy operation. though it should be unnoticeable it is recommended to test
     first. Backups are encouraged.
     """)
     parser = argparse.ArgumentParser(description=scriptDescription, allow_abbrev=False)
 
     parser.add_argument("--crf", action="store", metavar="int", type=int,
-        help="CRF paramater to be passed through to ffmpeg, determines quality and speed with lower values being slower but higher quality")
+        help="CRF parameter to be passed through to ffmpeg, determines quality and speed with lower values being slower but higher quality")
     parser.add_argument("--errors", "-e", action="store_true", help="list errors")
     parser.add_argument("--database", action="store", help="name of database to be used")
     parser.add_argument("--focus", "-f", action="append", metavar="PATH", help="immediately begin conversion on target directory")
     parser.add_argument("--list-paths", "-lp", action="store_true", help="list tracked paths")
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
-    parser.add_argument("--nvenc", action="store_true", help="transcode using NVENC compatable GPU")
-    parser.add_argument("--preset", action="store", type=str, 
+    parser.add_argument("--nvenc", action="store_true", help="transcode using NVENC compatible GPU")
+    parser.add_argument("--resolution", action="store", type=int, help="output resolution to be used for conversion")
+    parser.add_argument("--preset", action="store", type=str,
         help="string for ffmpeg paramater, accepts ultrafast, superfast, veryfast, faster, fast, medium, slow, slower,\
              veryslow and placebo, slower speeds have a higher filesize and better quality")
     parser.add_argument("--track", "-t", action="append", metavar="PATH", help="add a new path to be tracked")
@@ -55,6 +56,12 @@ def main():
         databasePath = databaseDir + "/library.json"
 
     library = mediaTracker.MediaLibrary(databasePath)
+
+    if args.low_profile:
+        library.low_profile = True
+
+    if args.resolution:
+        library.resolution = args.resolution
 
     if args.errors:
         library.showFailed()
@@ -107,7 +114,7 @@ def main():
         try:
             matchLow = args.low_profile and libraryEntry["video_profile"] == "Main"
             matchHigh = not args.low_profile
-            if libraryEntry["video_codec"] == "hevc" and (matchLow or matchHigh):
+            if libraryEntry["video_codec"] == "hevc" and (matchLow or matchHigh) and (not args.resolution or args.resolution == libraryEntry["resolution"]):
                 library.markComplete(filepath)
                 continue
         except KeyError:
@@ -118,6 +125,8 @@ def main():
             encoder.low_profile = True
         if args.nvenc:
             encoder.nvenc = True
+        if args.resolution:
+            encoder.resolution = args.resolution
         if args.crf:
             if 0 < args.crf < 51:
                 encoder.crf = args.crf
@@ -136,6 +145,8 @@ def main():
                 encoder.preset = preset
             else:
                 raise ValueError("preset not a valid argument, please use ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow or placebo")
+        if args.resolution:
+            encoder.resolution = args.resolution
 
         try:
             encodeResult = encoder.encode()

@@ -43,6 +43,7 @@ class X265Encoder:
 
         self.low_profile = False
         self.nvenc = False
+        self.resolution = False
         self.crf = 28
         self.preset = "medium"
 
@@ -199,6 +200,10 @@ class X265Encoder:
             self.log.debug("Main10 profile used")
             self.command += ["-profile:v", "main10"]
 
+        if self.resolution:
+            self.log.debug("Resolution used")
+            self.command += ["-vf", f"scale=-1:{self.resolution}"]
+
     def _restore(self):
         if os.path.exists(self.backupFilepath):
             if os.path.exists(self.outputFilepath):
@@ -238,6 +243,8 @@ class X265Encoder:
         self.file = mediaTracker.VideoInformation(self.filepath)
         if self.low_profile is True:
             self.file.low_profile = True
+        if self.resolution:
+            self.file.resolution = self.resolution
         self.file.analyze()
 
         if self.file.isEncoded():
@@ -272,7 +279,6 @@ class X265Encoder:
             os.remove(self.backupFilepath)
             return self.outputFilepath
 
-    
 class Error(Exception):
     pass
 
