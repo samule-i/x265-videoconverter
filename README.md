@@ -1,3 +1,9 @@
+# Changes in this fork
+Variable Bit Rate added to allow for controlling the quality of NVENC
+Threshold and Ceiling for scanning for both Bit Rate and Height of the video, allow to selectively pick which files to add to the encode list
+Add commands for clearing the different lists of files
+Skipped file list of files which did not meet the thresholds or ceilings, to allow to be easily purged when ready to change parameters
+
 # x265-converter
 A database focused media conversion utility that converts video files to the
 HEVC video codec with a focus on reducing disk usage in media libraries. This
@@ -40,7 +46,7 @@ Transcoded:
     --number NUMBER, -n NUMBER
                             transcode from tracked paths limit number of files to be converted
     --nvenc               transcode using NVENC compatable GPU
-    --height               Height of the output resolution to be used for conversion
+    --height              Height of the output resolution to be used for conversion
     --preset PRESET       string for ffmpeg paramater, accepts ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow and placebo, slower speeds have a higher filesize and better quality
     --track PATH, -t PATH
                             add a new path to be tracked
