@@ -183,7 +183,7 @@ def main():
         except KeyError:
             continue
 
-        encoder = videoEncoder.X265Encoder(filepath)
+        encoder = videoEncoder.X265Encoder(filepath, args)
         if args.low_profile:
             encoder.low_profile = True
         if args.nvenc:
@@ -218,7 +218,7 @@ def main():
                 encoder.maxrate = args.maxrate
             
         try:
-            encodeResult = encoder.encode()
+            encodeResult = encoder.encode(args)
         except videoEncoder.AlreadyEncodedError:
             library.markComplete(filepath)
             continue

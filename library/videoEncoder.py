@@ -10,7 +10,7 @@ from library import mediaTracker
 from library import logger
 
 class X265Encoder:
-    def __init__(self, filepath):
+    def __init__(self, filepath, args):
 
         """
         wiki states that these file formats are HEVC compatable
@@ -51,7 +51,12 @@ class X265Encoder:
         self.minrate = False
         self.maxrate = False
 
-        self.log = logger.setup_logging()
+        if args.verbose:
+            self.log = logger.setup_logging(None, "DEBUG")
+        elif args.quiet:
+            self.log = logger.setup_logging(None, "CRITICAL")
+        else:
+            self.log = logger.setup_logging(None)        
 
     def _backup(self):
         if os.path.isfile(self.backupFilepath):
@@ -247,12 +252,12 @@ class X265Encoder:
             return False
         return True
 
-    def encode(self):
+    def encode(self, args):
 
         if not self._checkValid():
             raise InvalidFileError
 
-        self.file = mediaTracker.VideoInformation(self.filepath)
+        self.file = mediaTracker.VideoInformation(self.filepath, args)
         if self.low_profile is True:
             self.file.low_profile = True
         if self.height:
