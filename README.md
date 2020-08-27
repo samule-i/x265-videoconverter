@@ -1,7 +1,7 @@
 # Changes in this fork
-Variable Bit Rate added to allow for controlling the quality of NVENC
-Threshold and Ceiling for scanning for both Bit Rate and Height of the video, allow to selectively pick which files to add to the encode list
-Add commands for clearing the different lists of files
+Variable Bit Rate added to allow for controlling the quality of NVENC  
+Threshold and Ceiling for scanning for both Bit Rate and Height of the video, allow to selectively pick which files to add to the encode list  
+Add commands for clearing the different lists of files  
 Skipped file list of files which did not meet the thresholds or ceilings, to allow to be easily purged when ready to change parameters
 
 # x265-converter
