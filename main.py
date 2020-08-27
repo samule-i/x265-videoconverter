@@ -26,7 +26,7 @@ def main():
     parser.add_argument("--database", action="store", help="name of database to be used")
     parser.add_argument("--focus", "-f", action="append", metavar="PATH", help="immediately begin conversion on target directory")
     parser.add_argument("--list-paths", "-lp", action="store_true", help="list tracked paths")
-    parser.add_argument("--list-blacklist-paths", "-lp", action="store_true", help="list blacklisted paths")
+    parser.add_argument("--list-blacklist-paths", "-lbp", action="store_true", help="list blacklisted paths")
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
     parser.add_argument("--nvenc", action="store_true", help="transcode using NVENC compatible GPU")
@@ -35,6 +35,7 @@ def main():
         help="string for ffmpeg paramater, accepts ultrafast, superfast, veryfast, faster, fast, medium, slow, slower,\
              veryslow and placebo, slower speeds have a higher filesize and better quality")
     parser.add_argument("--track", "-t", action="append", metavar="PATH", help="add a new path to be tracked")
+    parser.add_argument("--blacklist", "-b", action="append", metavar="PATH", help="add a blacklist path to be excluded from scans")
     parser.add_argument("--saved-space", action="store_true", help="display HDD space saved by transcoding into x265")
     parser.add_argument("--scan", "-s", action="store_true", help="scan tracked directories for new files")
     parser.add_argument("--quiet", "-q", action="store_true", help="only produce minimal output")
@@ -82,6 +83,10 @@ def main():
     if args.track:
         for path in args.track:
             library.addNewPath(os.path.abspath(path))
+
+    if args.blacklist:
+        for path in args.blacklist:
+            library.addBlacklistPath(os.path.abspath(path))
 
     if args.saved_space:
         totalSavedMB = int(library.returnTotalSaved() / 1_000_000)

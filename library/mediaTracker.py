@@ -123,6 +123,9 @@ class MediaLibrary:
            ffprobe them and add metadata to database."""
         self.log.info(f" MediaLibrary scanning {path}")
         for root, _, files in os.walk(path):
+            for blacklist_entry in self.library["blacklist"]:
+                if blacklist_entry in root:
+                    continue # this folder is within a blacklisted folder
             for name in files:
                 if str.lower(os.path.splitext(name)[1]) not in self.videoFileTypes:
                     continue  # not a video
