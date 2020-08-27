@@ -30,7 +30,7 @@ def main():
     parser.add_argument("--low-profile", action="store_true", help="for weaker devices, convert to 4-bit HEVC including downgrading 10-bit hevc", default=False)
     parser.add_argument("--number", "-n", action="store", help="transcode from tracked paths limit number of files to be converted", type=int)
     parser.add_argument("--nvenc", action="store_true", help="transcode using NVENC compatible GPU")
-    parser.add_argument("--resolution", action="store", type=int, help="Height of the output resolution to be used for conversion")
+    parser.add_argument("--height", action="store", type=int, help="Height of the output resolution to be used for conversion")
     parser.add_argument("--preset", action="store", type=str,
         help="string for ffmpeg paramater, accepts ultrafast, superfast, veryfast, faster, fast, medium, slow, slower,\
              veryslow and placebo, slower speeds have a higher filesize and better quality")
@@ -43,6 +43,9 @@ def main():
     parser.add_argument("--vbr", action="store", type=str, help="Set the Variable Bitrate for the encoding pass, this will adjust NVENC quality")
     parser.add_argument("--minrate", action="store", type=str, help="Set the minimum rate for Variable Bitrate mode")
     parser.add_argument("--maxrate", action="store", type=str, help="Set the maximum rate for Variable Bitrate mode")
+    parser.add_argument("--rate-threshold", action="store", type=int, help="Set the minimum kbps files must have in order to add to processing list during scan")
+    parser.add_argument("--rate-ceiling", action="store", type=int, help="Set the maximum kbps files can have in order to add to processing list during scan")
+    parser.add_argument("--force-encode", action="store_true", help="force HEVC re-encode")
 
     args = parser.parse_args()
 
@@ -60,13 +63,22 @@ def main():
     else:
         databasePath = databaseDir + "/library.json"
 
-    library = mediaTracker.MediaLibrary(databasePath)
+    library = mediaTracker.MediaLibrary(databasePath, args)
+
+    if args.force_encode:
+        library.force_encode = True
+
+    if args.rate_threshold:
+        library.rate_threshold = args.rate_threshold
+
+    if args.rate_ceiling:
+        library.rate_ceiling = args.rate_ceiling
 
     if args.low_profile:
         library.low_profile = True
 
-    if args.resolution:
-        library.resolution = args.resolution
+    if args.height:
+        library.height = args.height
 
     if args.errors:
         library.showFailed()
@@ -102,7 +114,7 @@ def main():
 
     if args.scan:
         for fp in library.listPaths():
-            library.scan(fp)
+            library.scan(fp, args)
 
     if args.focus:
         for dir in args.focus:
@@ -127,7 +139,7 @@ def main():
         try:
             matchLow = args.low_profile and libraryEntry["video_profile"] == "Main"
             matchHigh = not args.low_profile
-            if libraryEntry["video_codec"] == "hevc" and (matchLow or matchHigh) and (not args.resolution or args.resolution == libraryEntry["resolution"]):
+            if libraryEntry["video_codec"] == "hevc" and (matchLow or matchHigh) and (not args.height or args.height == libraryEntry["height"]):
                 library.markComplete(filepath)
                 continue
         except KeyError:
@@ -138,8 +150,8 @@ def main():
             encoder.low_profile = True
         if args.nvenc:
             encoder.nvenc = True
-        if args.resolution:
-            encoder.resolution = args.resolution
+        if args.height:
+            encoder.height = args.height
         if args.crf:
             if 0 < args.crf < 51:
                 encoder.crf = args.crf
@@ -158,8 +170,8 @@ def main():
                 encoder.preset = preset
             else:
                 raise ValueError("preset not a valid argument, please use ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow or placebo")
-        if args.resolution:
-            encoder.resolution = args.resolution
+        if args.height:
+            encoder.height = args.height
         if args.vbr:
             encoder.vbr = args.vbr
             if args.minrate:
