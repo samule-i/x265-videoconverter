@@ -19,6 +19,19 @@ The latest version of ffmpeg is 4.1.4 when testing, download from [ffmpeg](https
     main.py -t /path/to/media -s
     main.py -n 10
 
+# usage for compression
+Both of these examples are utilizing the NVENC option, which will speed up the encoding process drastically
+
+Here we can use it to compress a video library to a smaller frame size, ensuring only to compress files which are not already low bitrate
+
+    main.py -t /path/to/media -s --height-threshold 1080 --rate-threshold 1000 --force-encode
+    main.py -n 10 --height 720 --nvenc --vbr 1000k --minrate 400k --maxrate 1600k
+
+Or use it to compress files with low resolution, making sure to only add files below SDTV
+
+    main.py -t /path/to/media -s --height-ceiling 480 --force-encode
+    main.py -n 10 --nvenc --vbr 300k --minrate 100k --maxrate 800k
+
 # comparison
 Original:
 ![original](https://github.com/formcore/x265-videoconverter/blob/master/video_examples_output/x264%20to%20x265%20original.png?raw=true)
