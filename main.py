@@ -45,7 +45,14 @@ def main():
     parser.add_argument("--maxrate", action="store", type=str, help="Set the maximum rate for Variable Bitrate mode")
     parser.add_argument("--rate-threshold", action="store", type=int, help="Set the minimum kbps files must have in order to add to processing list during scan")
     parser.add_argument("--rate-ceiling", action="store", type=int, help="Set the maximum kbps files can have in order to add to processing list during scan")
+    parser.add_argument("--height-threshold", action="store", type=int, help="Set the minimum height files must have in order to add to processing list during scan")
+    parser.add_argument("--height-ceiling", action="store", type=int, help="Set the maximum height files can have in order to add to processing list during scan")
     parser.add_argument("--force-encode", action="store_true", help="force HEVC re-encode")
+    parser.add_argument("--clear-all", action="store_true", help="clear the library of all files")
+    parser.add_argument("--clear-skipped", action="store_true", help="clear the library of skipped files")
+    parser.add_argument("--clear-incomplete", action="store_true", help="clear the library of incomplete files")
+    parser.add_argument("--clear-complete", action="store_true", help="clear the library of complete files")
+    parser.add_argument("--clear-failed", action="store_true", help="clear the library of failed files")
 
     args = parser.parse_args()
 
@@ -74,6 +81,12 @@ def main():
     if args.rate_ceiling:
         library.rate_ceiling = args.rate_ceiling
 
+    if args.height_threshold:
+        library.height_threshold = args.height_threshold
+
+    if args.height_ceiling:
+        library.height_ceiling = args.height_ceiling
+
     if args.low_profile:
         library.low_profile = True
 
@@ -90,6 +103,31 @@ def main():
 
     if args.list_blacklist_paths:
         print(library.listBlacklistPaths())
+        sys.exit()
+
+    if args.clear_all:
+        library.clearAll()
+        print('All file lists have been cleared')
+        sys.exit()
+
+    if args.clear_skipped:
+        library.clearSkipped()
+        print('Skipped file list has been cleared')
+        sys.exit()
+
+    if args.clear_incomplete:
+        library.clearIncomplete()
+        print('Incomplete file list has been cleared')
+        sys.exit()
+
+    if args.clear_complete:
+        library.clearComplete()
+        print('Complete file list has been cleared')
+        sys.exit()
+
+    if args.clear_failed:
+        library.clearFailed()
+        print('Failed file list has been cleared')
         sys.exit()
 
     if args.track:

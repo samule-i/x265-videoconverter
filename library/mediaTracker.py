@@ -99,6 +99,8 @@ class MediaLibrary:
         self.height = False
         self.rate_threshold = False
         self.rate_ceiling = False
+        self.height_threshold = False
+        self.height_ceiling = False
         self.force_encode = False
         if args.verbose:
             self.log = logger.setup_logging(None, "DEBUG")
@@ -197,12 +199,18 @@ class MediaLibrary:
                     print(json.dumps(self.info.ffprobe, indent=2))
                     return
 
-                if (self.rate_threshold and self.entry["bit_rate"] <= self.rate_threshold ):
+                if (self.rate_threshold and self.entry["bit_rate"] < self.rate_threshold ):
                     self.library["skipped_files"][self.filepath] = self.entry
                     self.log.info(f'{self.entry["width"]}x{self.entry["height"]} @ {self.entry["bit_rate"]}kbps -- Skipping File, below the bit rate threshold')
-                elif (self.rate_ceiling and self.entry["bit_rate"] >= self.rate_ceiling ):
+                elif (self.rate_ceiling and self.entry["bit_rate"] > self.rate_ceiling ):
                     self.library["skipped_files"][self.filepath] = self.entry
                     self.log.info(f'{self.entry["width"]}x{self.entry["height"]} @ {self.entry["bit_rate"]}kbps -- Skipping File, above the bit rate ceiling')
+                elif (self.height_threshold and self.entry["height"] < self.height_threshold ):
+                    self.library["skipped_files"][self.filepath] = self.entry
+                    self.log.info(f'{self.entry["width"]}x{self.entry["height"]} @ {self.entry["bit_rate"]}kbps -- Skipping File, below the height threshold')
+                elif (self.height_ceiling and self.entry["height"] > self.height_ceiling ):
+                    self.library["skipped_files"][self.filepath] = self.entry
+                    self.log.info(f'{self.entry["width"]}x{self.entry["height"]} @ {self.entry["bit_rate"]}kbps -- Skipping File, above the height ceiling')
                 elif (self.info.isEncoded() and not self.force_encode):
                     self.library["complete_files"][self.filepath] = self.entry
                     self.library["complete_files"][self.filepath]["original_codec"] = "hevc"
@@ -276,6 +284,34 @@ class MediaLibrary:
         if self.mediaDirectory not in self.library["paths"]:
             self.log.info(f" Adding new scan path {self.mediaDirectory}")
             self.library["paths"].append(self.mediaDirectory)
+        self._libraryCommit()
+
+    def clearAll(self):
+        """Clear all file lists."""
+        self.library["skipped_files"] = {}
+        self.library["incomplete_files"] = {}
+        self.library["complete_files"] = {}
+        self.library["failed_files"] = {}
+        self._libraryCommit()
+
+    def clearSkipped(self):
+        """Clear the skipped file list."""
+        self.library["skipped_files"] = {}
+        self._libraryCommit()
+
+    def clearIncomplete(self):
+        """Clear the incomplete file list."""
+        self.library["incomplete_files"] = {}
+        self._libraryCommit()
+
+    def clearComplete(self):
+        """Clear the complete file list."""
+        self.library["complete_files"] = {}
+        self._libraryCommit()
+
+    def clearFailed(self):
+        """Clear the failed file list."""
+        self.library["failed_files"] = {}
         self._libraryCommit()
 
     def addBlacklistPath(self, filepath):
