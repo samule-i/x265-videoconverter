@@ -9,6 +9,7 @@ import time
 from library import mediaTracker
 from library import logger
 
+
 class X265Encoder:
     def __init__(self, filepath, args):
 
@@ -293,9 +294,22 @@ class X265Encoder:
             self._restore()
             raise EncoderFailedError(ffmpegError)
         else:
-            time.sleep(2)
-            os.remove(self.backupFilepath)
+            passed = False
+            i = 0
+            while not passed:
+                i += 1
+                time.sleep(.2)
+                try:
+                    os.chmod(self.backupFilepath, 0o777)
+                    os.remove(self.backupFilepath)
+                    passed = True
+                except PermissionError as error:
+                    print(error)
+                    pass
+                if (i >= 10):
+                    sys.exit()
             return self.outputFilepath
+
 
 class Error(Exception):
     pass
