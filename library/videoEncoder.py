@@ -4,12 +4,14 @@ import logging
 import sys
 import subprocess
 import os
+import time
 
 from library import mediaTracker
 from library import logger
 
+
 class X265Encoder:
-    def __init__(self, filepath):
+    def __init__(self, filepath, args):
 
         """
         wiki states that these file formats are HEVC compatable
@@ -43,11 +45,19 @@ class X265Encoder:
 
         self.low_profile = False
         self.nvenc = False
-        self.resolution = False
+        self.height = False
         self.crf = 28
         self.preset = "medium"
+        self.vbr = False
+        self.minrate = False
+        self.maxrate = False
 
-        self.log = logger.setup_logging()
+        if args.verbose:
+            self.log = logger.setup_logging(None, "DEBUG")
+        elif args.quiet:
+            self.log = logger.setup_logging(None, "CRITICAL")
+        else:
+            self.log = logger.setup_logging(None)        
 
     def _backup(self):
         if os.path.isfile(self.backupFilepath):
@@ -77,14 +87,15 @@ class X265Encoder:
 
         self.command += ["-map_chapters", "0", "-map_metadata", "0"]
 
+        self.command += ["-crf", str(self.crf)]
+        self.command += ["-preset", self.preset]
+        self.command += ["-max_muxing_queue_size", str(1024)]
+
         self._mapVideoStreams()
         self._mapAudioStreams()
         self._mapSubtitleStreams()
         self._mapAttachments()
         self._mapImages()
-
-        self.command += ["-crf", str(self.crf)]
-        self.command += ["-preset", self.preset]
 
         self.command += [self.outputFilepath]
         return self.command
@@ -193,6 +204,13 @@ class X265Encoder:
             else:
                 self.command += ["-pix_fmt", "yuv420p10le"]
 
+        if self.vbr:
+            self.command += ["-b:v", self.vbr]
+            if self.minrate:
+                self.command += ["-minrate", self.minrate]
+            if self.maxrate:
+                self.command += ["-maxrate", self.maxrate]
+
         if self.low_profile:
             self.log.debug("Main profile used")
             self.command += ["-profile:v", "main"]
@@ -200,9 +218,9 @@ class X265Encoder:
             self.log.debug("Main10 profile used")
             self.command += ["-profile:v", "main10"]
 
-        if self.resolution:
-            self.log.debug("Resolution used")
-            self.command += ["-vf", f"scale=-1:{self.resolution}"]
+        if self.height:
+            self.log.debug("Scaling to specified height")
+            self.command += ["-vf", f"scale=-1:{self.height}"]
 
     def _restore(self):
         if os.path.exists(self.backupFilepath):
@@ -235,16 +253,16 @@ class X265Encoder:
             return False
         return True
 
-    def encode(self):
+    def encode(self, args):
 
         if not self._checkValid():
             raise InvalidFileError
 
-        self.file = mediaTracker.VideoInformation(self.filepath)
+        self.file = mediaTracker.VideoInformation(self.filepath, args)
         if self.low_profile is True:
             self.file.low_profile = True
-        if self.resolution:
-            self.file.resolution = self.resolution
+        if self.height:
+            self.file.height = self.height
         self.file.analyze()
 
         if self.file.isEncoded():
@@ -276,8 +294,22 @@ class X265Encoder:
             self._restore()
             raise EncoderFailedError(ffmpegError)
         else:
-            os.remove(self.backupFilepath)
+            passed = False
+            i = 0
+            while not passed:
+                i += 1
+                time.sleep(.2)
+                try:
+                    os.chmod(self.backupFilepath, 0o777)
+                    os.remove(self.backupFilepath)
+                    passed = True
+                except PermissionError as error:
+                    print(error)
+                    pass
+                if (i >= 10):
+                    sys.exit()
             return self.outputFilepath
+
 
 class Error(Exception):
     pass
